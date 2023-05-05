@@ -12,20 +12,20 @@ from nonebot_plugin_htmlrender import (
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
-animation=on_command("执行更新")
+animation=on_command("番剧更新")
 animation_infor=on_command("番剧信息")
 search_number=on_command("番剧查询")
 animation_help=on_command("番剧帮助")
-upgrade_animation_today=on_command("今日更新")
-emmmm=on_keyword(keywords=["emm","233","hhh","哈哈哈","哦哦","6","奥奥","嗯嗯","哈哈","呃呃"])#5bCx5L2g5pW36KGN5oiR5piv5ZCn😅
-sub_drama=on_command("添加追番")
+upgrade_animation_today=on_command("今日新番")
+emmmm=on_keyword(keywords=["emm","233","hhh","哈哈哈","6","哦哦","奥奥","嗯嗯","哈哈","呃呃"])#5bCx5L2g5pW36KGN5oiR5piv5ZCn😅
+sub_drama=on_command("新增追番")
 sub_sub_drama=on_command("取消追番")
 sub_drama_list=on_command("我的追番")
 async def admin_check(event:MessageEvent) -> bool:
     animation_config=get_driver().config
     animation_admin=animation_config.animation_admin
     return animation_admin==event.user_id
-everyday_push=on_command("添加订阅")
+everyday_push=on_command("新增订阅")
 everyday_push_off=on_command("取消订阅")
 month=["01","01","01","04","04","04","07","07","07","10","10","10"]
 random_face= ['😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎', '😍', '😘', '🥰', '😗', '😙', '😚', '🙂', '🤗', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '🥱', '😴', '😌', '😛', '😜', '😝', '🤤','🙃','🤑','🤠','🥳','🥴','🥺','🤥','🤫','🤭','🧐',"😊","❤","😂","👍","😭","🙏","😘","🥰","😍","😊","🎉","😁","💕","🥺","😅","🔥","🙂","🥱","♥","🙄","😋","🤗","😎","🤩","😡","😴","😮‍💨","😮","😱","😨","😵‍💫","😵","😷","🤒","🤕","🤢","🤮","🤧","🥵","🥶","🥴","😵‍💫","🤠","🤡","🥳","🥸","😇","🤖","💩", "👻", "💀", "☠", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾","💋", "👋", "👌", "✌", "🤞", "🤟", "🤘", "🤙", "💪", "✊", "✋", "💅", "💍", "💄", "💋","💘","😂","😘","😍","😊","😁","😭","😜","😝","😄","😡","😀","😥","🙃","😋","👍","👌","❤","😱","🐷"]
@@ -228,7 +228,7 @@ async def animation_today_(bot:Bot,group=0,user=0):#查询今日更新的番剧�
             tmp_time=r_animation_information_time(str(tmp))
             number+=1
             r_message+=f'{number}，【{tmp_time}】{str(tmp)}\n'
-    r_message=f"今日更新【{today_week}】\n"+r_message
+    r_message=f"今日番剧【{today_week}】\n"+r_message
     try:
         await text_to_img(bot,message=r_message,group=group,user=user)
     except:
@@ -264,9 +264,9 @@ async def add_user_sub_animation(bot:Bot,event:MessageEvent,numbers):
             pass
     if msg:
         try:
-            await bot.finish(f"{msg}\n已添加至【{event.user_id}】的追番列表")   
+            await bot.finish(f"{msg}\n已新增至【{event.user_id}】的追番列表")   
         except ActionFailed:
-            msg=f"{msg}\n已添加至【{event.user_id}】的追番列表"
+            msg=f"{msg}\n已新增至【{event.user_id}】的追番列表"
             tmp_pic=await text_to_pic(msg)
             await bot.finish(Message(MessageSegment.image(tmp_pic)))
     else:
@@ -302,18 +302,17 @@ async def scond_search_number(num:Message=Arg("tmp")):
     await r_animation_information_message(search_number,num)
 @animation_help.handle()#番剧帮助
 async def animation_helps():
-    tmp=f"""
-    Commands:【可选参数】
-    番剧信息  #当前季度的番剧
-    执行更新  #强制更新信息
-    今日更新  #今日更新的番剧
-    添加订阅  #订阅=追番提醒
-    取消订阅
-    番剧查询 【number list】
-    添加追番 【number list】
-    我的追番  #查看追番列表
-    取消追番 
-    """
+    tmp=f"""====================
+#番剧信息 【当前季度的番剧】
+#番剧更新 【强制更新番剧信息】
+#今日番剧 【今日更新的番剧】
+#新增订阅 【订阅=追番提醒】
+#取消订阅
+==================== 
+#番剧查询 【番剧信息中的序号】
+#新增追番 【番剧信息中的序号】
+#我的追番 【查看追番列表】
+#取消追番"""
     try:
         await animation_help.finish(Message(tmp))
     except ActionFailed:
@@ -328,7 +327,7 @@ async def today_animation():
         await animation_today_(bot=bot,group=i)
     for i in load_user_setting()[1]:
         await animation_today_(bot=bot,user=i)
-@everyday_push.got("tmp",prompt=f"是否订阅每日推送 Y/N")#添加订阅
+@everyday_push.got("tmp",prompt=f"是否订阅每日推送 Y/N")#新增订阅
 async def everyday_push_setting(bot:Bot,event:MessageEvent):
     with open("User_setting.json","r",encoding="utf-8") as f:
         tmp1=event.get_plaintext()
@@ -339,7 +338,7 @@ async def everyday_push_setting(bot:Bot,event:MessageEvent):
                 qq_group=int(event.group_id)
                 if (qq_group not in load_user_setting()[0]) and await (admin_check(event)):
                     tmp_json["sub_qq_group"].append(qq_group)
-                    await everyday_push.send(message=f'QQ群：{qq_group}已添加至订阅')
+                    await everyday_push.send(message=f'QQ群：{qq_group}已新增至订阅')
                 else:
                     if await (admin_check(event)):
                         await everyday_push.send(message=f'QQ群：{qq_group}不可重复订阅')
@@ -349,7 +348,7 @@ async def everyday_push_setting(bot:Bot,event:MessageEvent):
                 user_qq=int(event.user_id)
                 if user_qq not in load_user_setting()[1]:
                     tmp_json["Users_sub"].append(user_qq)
-                    await everyday_push.send(message=f'QQ：{user_qq}已添加至订阅')
+                    await everyday_push.send(message=f'QQ：{user_qq}已新增至订阅')
                 else:
                     await everyday_push.send(message=f'QQ：{user_qq}不可重复订阅')
         else:
@@ -387,13 +386,13 @@ async def everyday_push_off_setting(bot:Bot,event:MessageEvent):
 @emmmm.handle()#u know,that's right
 async def emm():
     await emmmm.finish(message=Message(random.choice(random_face)))
-@sub_drama.handle()#添加追番
+@sub_drama.handle()#新增追番
 async def sub_dramas(bot:Bot,event:MessageEvent,numbers:Message=CommandArg()):
     if str(numbers):
         await add_user_sub_animation(sub_drama,event,numbers)
     else:
         await return_animation_message(sub_drama)
-@sub_drama.got("key",prompt="请选择编号")#询问添加追番
+@sub_drama.got("key",prompt="请选择编号")#询问新增追番
 async def sub_dramas_(bot:Bot,event:MessageEvent):
     await add_user_sub_animation(sub_drama,event,event.get_plaintext())
 @sub_drama_list.handle()#追番列表
@@ -418,7 +417,7 @@ async def sub_sub_list(bot:Bot,event:MessageEvent):
         num+=1
         msg+=f"{num}，{i}\n"
     await text_to_img(sub_sub_drama,msg)
-    await sub_sub_drama.send(f"请选择编号捏{random.choice(random_face)},或者全部（all）")
+    await sub_sub_drama.send(f"请发送编号捏{random.choice(random_face)}#")
 @sub_sub_drama.got("key")
 async def sub_sub_list_get(bot:Bot,event:MessageEvent):
     with open("User_setting.json","r",encoding="utf-8") as f:
