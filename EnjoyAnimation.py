@@ -1,10 +1,10 @@
-from nonebot import on_keyword,on_command,require,get_driver,get_bot
+from nonebot import on_keyword,on_command,require,get_driver,get_bot,require
 from nonebot.adapters.onebot.v11 import ActionFailed,Message,GroupMessageEvent,Event,MessageSegment,Bot,PrivateMessageEvent,MessageEvent
 from nonebot.params import Arg,CommandArg
+from nonebot.matcher import Matcher
 import requests,os,json,random
 from bs4 import BeautifulSoup
 from datetime import datetime
-from nonebot import require
 require("nonebot_plugin_htmlrender")
 from nonebot_plugin_htmlrender import (
     text_to_pic,
@@ -240,7 +240,7 @@ def load_user_setting()->list:#返回用户设置
         Users_sub=tmp["Users_sub"]
         Users_sub_animation=tmp["Users_sub_animation"]
         return [sub_qq_group,Users_sub,Users_sub_animation]
-async def add_user_sub_animation(bot:Bot,event:MessageEvent,numbers):
+async def add_user_sub_animation(bot:Bot,event:MessageEvent,numbers):#添加用户追番
     num_list=str(numbers).split(" ")
     msg=""
     with open("User_setting.json","r",encoding="utf-8") as f:
@@ -271,13 +271,23 @@ async def add_user_sub_animation(bot:Bot,event:MessageEvent,numbers):
             await bot.finish(Message(MessageSegment.image(tmp_pic)))
     else:
         await bot.finish(random.choice(random_face))
-def time_to_numberlist(name)-> bool:
-    tmp=list(map(int,r_animation_information_time(name).split(":")))
-    if datetime.now().hour==tmp[0]%24 and datetime.now().minute==int(tmp[1]):
-        return True
-    else:
-        return False
-def groupmemberlist_userID_list(dict) ->list:
+async def r_messagetype_message(bot:Bot or Matcher,type:str,id:int,msg):#根据 群or个人 类型发送消息
+    '''
+    type="private / group"
+    '''
+    if type=="private":
+        await bot.send_msg(message_type="private",user_id=int(id),message=Message(msg))
+    elif type=="group":
+        await bot.send_msg(message_type="group",group_id=int(id),message=Message(msg))
+async def pre_r_sub_animation(bot:Bot or Matcher,qq_user:int,sub_animation:str):#向订阅列表中的成员发送订阅消息
+    msg=MessageSegment.at(user_id=int(qq_user))+Message(f"你的追番【{str(sub_animation)}】已更新{random.choice(random_face)}")
+    if int(qq_user) in load_user_setting()[1]:
+        await r_messagetype_message(bot,"private",qq_user,msg)
+    if load_user_setting()[0]:
+        for qq_group in load_user_setting()[0]:
+            if int(qq_user) in groupmemberlist_userID_list(await bot.get_group_member_list(group_id=qq_group)):
+                await r_messagetype_message(bot,"group",qq_group,msg)
+def groupmemberlist_userID_list(dict) ->list:#返回该群成员信息中的qq号
     r_list=[]
     for i in dict:
         r_list.append(i['user_id'])
@@ -447,17 +457,17 @@ async def sub_sub_list_get(bot:Bot,event:MessageEvent):
         json.dump(tmp,f,indent=4,ensure_ascii=False)
     await text_to_img(sub_sub_drama,msg)
     await sub_sub_drama.finish()
-@scheduler.scheduled_job("interval",minutes=1)
+@scheduler.scheduled_job("interval",minutes=1)#追番更新提醒
 async def user_sub():
     bot:Bot=get_bot()
     sub_list=load_user_setting()[2]
     for qq_user in sub_list:
         tmp=load_user_setting()[2][str(qq_user)]
         for sub_animation in tmp:
-            if weekday_map[datetime.now().weekday()]==weekday_map[r_animation_information_week(sub_animation)] and time_to_numberlist(sub_animation):
-                if int(qq_user) in load_user_setting()[1]:
-                    await bot.send_msg(message_type="private",user_id=int(qq_user),message=Message(MessageSegment.at(user_id=int(qq_user))+Message(f"你的追番【{str(sub_animation)}】已更新{random.choice(random_face)}")))
-                if load_user_setting()[0]:
-                    for qq_group in load_user_setting()[0]:
-                        if int(qq_user) in groupmemberlist_userID_list(await bot.get_group_member_list(group_id=qq_group)):
-                            await bot.send_msg(message_type="group",group_id=int(qq_group),message=Message(MessageSegment.at(user_id=int(qq_user))+Message(f"你的追番【{str(sub_animation)}】已更新{random.choice(random_face)}")))
+            time_list=list(map(int,r_animation_information_time(sub_animation).split(":")))
+            if weekday_map[r_animation_information_week(sub_animation)]==weekday_map[datetime.now().weekday()]:
+                if datetime.now().hour==time_list[0] and datetime.now().minute==int(time_list[1]):
+                    await pre_r_sub_animation(bot,qq_user,sub_animation)
+            if weekday_map[r_animation_information_week(sub_animation)]==weekday_map[(datetime.now().weekday()-1)%7]:
+                if time_list[0]>23 and datetime.now().hour==time_list[0]%24 and datetime.now().minute==int(time_list[1]):
+                    await pre_r_sub_animation(bot,qq_user,sub_animation)
