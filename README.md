@@ -1,5 +1,5 @@
 # nonebot-plugin-EnjoyAnimation
-这是一个基于nonebot的qq-bot动漫番剧插件
+这是一个基于nonebot，gocqhttp的qq-bot动漫番剧插件
 
 ### 插件依赖
 插件：```nonebot-plugin-apscheduler nonebot-plugin-htmlrender```
