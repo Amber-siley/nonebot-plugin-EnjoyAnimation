@@ -12,6 +12,7 @@ from nonebot_plugin_htmlrender import (
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+plugin_version="beta 0.0.3"
 animation=on_command("番剧更新")
 animation_infor=on_command("番剧信息")
 search_number=on_command("番剧查询")
@@ -149,16 +150,6 @@ def file_json_store() -> None:#检测json文件是否存在,若存在则跳过�
         else:
             pass
 file_json_store()
-def user_file_json():#检测是否存在用户配置文件
-    if not os.path.exists("User_setting.json"):
-        with open("User_setting.json","w",encoding="utf-8") as r:
-            data_tmp={
-                "sub_qq_group":[],
-                "Users_sub":[],
-                "Users_sub_animation":{}
-            }
-            json.dump(data_tmp,r,indent=4,ensure_ascii=False) 
-user_file_json()
 async def text_to_img(bot,message:Message,group=0,user:int=0):#消息文字转图片
     if animation_default_return_img:
         tmp=str(message)
@@ -234,12 +225,46 @@ async def animation_today_(bot:Bot,group=0,user=0):#查询今日更新的番剧�
     except:
         await bot.finish(Message(f"可能被风控了捏！{random.choice(random_face)}"))
 def load_user_setting()->list:#返回用户设置
-    with open("User_setting.json","r",encoding="utf-8") as f:
-        tmp=json.load(f)
-        sub_qq_group=tmp["sub_qq_group"]
-        Users_sub=tmp["Users_sub"]
-        Users_sub_animation=tmp["Users_sub_animation"]
-        return [sub_qq_group,Users_sub,Users_sub_animation]
+    try:
+        with open("User_setting.json","r",encoding="utf-8") as f:
+            tmp=json.load(f)
+            sub_qq_group=tmp["sub_qq_group"]
+            Users_sub=tmp["Users_sub"]
+            Users_sub_animation=tmp["Users_sub_animation"]
+            sub_time=tmp["sub_time"]
+            tmp_version=tmp["version"]
+            return [sub_qq_group,Users_sub,Users_sub_animation,sub_time,tmp_version]
+    except KeyError:
+        return [None,None,None,None,None]
+def user_file_json():#检测是否存在用户配置文件 无则创建
+    global plugin_version
+    if not os.path.exists("User_setting.json"):
+        with open("User_setting.json","w",encoding="utf-8") as r:
+            data_tmp={
+                "sub_qq_group":[],
+                "Users_sub":[],
+                "Users_sub_animation":{},
+                "sub_time":[],
+                "version":plugin_version
+            }
+            json.dump(data_tmp,r,indent=4,ensure_ascii=False) 
+    try:
+        if load_user_setting()[4]!=plugin_version:
+            with open("User_setting.json","r",encoding="utf-8") as f:
+                tmp=json.load(f)
+                for i in ["sub_qq_group","Users_sub","Users_sub_animation","sub_time","version"]:
+                    if i not in list(tmp.keys()):
+                        if i!="version":
+                            tmp[i]=[]
+                        else:
+                            tmp[i]=plugin_version
+                tmp["version"]=plugin_version
+            with open("User_setting.json","w",encoding="utf-8") as f:
+                json.dump(tmp,f,indent=4,ensure_ascii=False) 
+    except json.JSONDecodeError:
+        os.remove("User_setting.json")
+        user_file_json()
+user_file_json()
 async def add_user_sub_animation(bot:Bot,event:MessageEvent,numbers):#添加用户追番
     num_list=str(numbers).split(" ")
     msg=""
@@ -459,7 +484,6 @@ async def sub_sub_list_get(bot:Bot,event:MessageEvent):
     await sub_sub_drama.finish()
 @scheduler.scheduled_job("interval",minutes=1)#追番更新提醒
 async def user_sub():
-    bot:Bot=get_bot()
     sub_list=load_user_setting()[2]
     for qq_user in sub_list:
         tmp=load_user_setting()[2][str(qq_user)]
@@ -467,7 +491,9 @@ async def user_sub():
             time_list=list(map(int,r_animation_information_time(sub_animation).split(":")))
             if weekday_map[r_animation_information_week(sub_animation)]==weekday_map[datetime.now().weekday()]:
                 if datetime.now().hour==time_list[0] and datetime.now().minute==int(time_list[1]):
+                    bot:Bot=get_bot()
                     await pre_r_sub_animation(bot,qq_user,sub_animation)
             if weekday_map[r_animation_information_week(sub_animation)]==weekday_map[(datetime.now().weekday()-1)%7]:
                 if time_list[0]>23 and datetime.now().hour==time_list[0]%24 and datetime.now().minute==int(time_list[1]):
+                    bot:Bot=get_bot()
                     await pre_r_sub_animation(bot,qq_user,sub_animation)
