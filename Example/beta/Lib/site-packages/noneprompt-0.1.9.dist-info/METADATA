@@ -1,0 +1,132 @@
+Metadata-Version: 2.1
+Name: noneprompt
+Version: 0.1.9
+Summary: Prompt toolkit for console interaction
+Home-page: https://github.com/nonebot/noneprompt
+License: MIT
+Keywords: prompt,inquirer,prompt-toolkit
+Author: yanyongyu
+Author-email: yyy@nonebot.dev
+Requires-Python: >=3.8,<4.0
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Dist: prompt-toolkit (>=3.0.19,<4.0.0)
+Project-URL: Documentation, https://github.com/nonebot/noneprompt
+Project-URL: Repository, https://github.com/nonebot/noneprompt
+Description-Content-Type: text/markdown
+
+# NonePrompt
+
+Prompt toolkit for console interaction.
+
+**Typing** is fully supported. **Async** is also supported!
+
+## Installation
+
+```bash
+pip install noneprompt
+```
+
+## Prompt Usage
+
+### Input
+
+```python
+from noneprompt import InputPrompt
+
+InputPrompt("What is your name?", validator=lambda string: True).prompt()
+await InputPrompt("What is your name?", validator=lambda string: True).prompt_async()
+```
+
+### Confirm
+
+```python
+from noneprompt import ConfirmPrompt
+
+ConfirmPrompt("Are you sure?", default_choice=False).prompt()
+await ConfirmPrompt("Are you sure?", default_choice=False).prompt_async()
+```
+
+### List
+
+```python
+from noneprompt import ListPrompt, Choice
+
+ListPrompt("What is your favorite color?", choices=[Choice("Red"), Choice("Blue")]).prompt()
+await ListPrompt("What is your favorite color?", choices=[Choice("Red"), Choice("Blue")]).prompt_async()
+```
+
+### Checkbox
+
+```python
+from noneprompt import CheckboxPrompt, Choice
+
+CheckboxPrompt("Choose your favorite colors", choices=[Choice("Red"), Choice("Blue")]).prompt()
+await CheckboxPrompt("Choose your favorite colors", choices=[Choice("Red"), Choice("Blue")]).prompt_async()
+```
+
+## Choice Data
+
+You can add data to choices. Result type can be inferred from the data type.
+
+```python
+from noneprompt import ListPrompt, Choice
+
+result: Choice[str] = ListPrompt(
+    "What is your favorite color?",
+    choices=[
+        Choice("Red", data="#FF0000"),
+        Choice("Blue", data="#0000FF"),
+    ],
+).prompt()
+print(result.data)
+```
+
+## Defaults and Cancellation
+
+```python
+from noneprompt import InputPrompt
+
+result = InputPrompt("Press Ctrl-C to cancel.").prompt(default="Cancelled")
+assert result == "Cancelled"
+```
+
+```python
+from noneprompt import InputPrompt, CancelledError
+
+try:
+    InputPrompt("Press Ctrl-C to cancel.").prompt()
+except CancelledError:
+    # Do something
+    pass
+```
+
+## Style Guide
+
+See the docstring of prompt classes for more information.
+
+```python
+from noneprompt import InputPrompt
+from prompt_toolkit.styles import Style
+
+InputPrompt("What is your name?").prompt(style=Style([("input": "#ffffff"), ("answer": "bold")]))
+```
+
+Disable ansi colors:
+
+```python
+from noneprompt import InputPrompt
+
+InputPrompt("What is your name?").prompt(no_ansi=True)
+```
+
+## Try from command line
+
+```bash
+noneprompt -h
+```
+

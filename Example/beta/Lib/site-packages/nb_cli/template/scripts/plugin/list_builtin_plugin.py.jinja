@@ -1,0 +1,7 @@
+import json
+from pathlib import Path
+
+import nonebot
+
+d = Path(nonebot.__path__[0]) / "plugins"
+print(json.dumps(sorted(p.stem for p in d.iterdir() if not p.stem.startswith("_"))))
