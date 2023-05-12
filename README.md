@@ -16,7 +16,7 @@ pip install --upgrade EnjoyAnimation
 
 库：```bs4 requests```
 
-### 安装插件
+### 一，安装插件
 #### 自动安装
 
 安装此插件：
@@ -62,7 +62,7 @@ nb plugin install nonebot-plugin-htmlrender
 ```
 plugin_dirs = ["src/plugins"]
 ```
-### 配置插件
+### 二，配置插件
 
 插件有三项必须配置项
 
@@ -72,7 +72,7 @@ animation_admin=123456789            #管理员qq号
 animation_time= [8,30]               #订阅提醒时间，[0~23,0~59]
 animation_default_return_img=false   #一些番剧信息是否以图片发送（配置为false时，检测到风控会自动以图片进行发送）
 ```
-### 插件使用
+### 三，插件使用
 ```
     Commands:【可选参数】
     番剧帮助 （查看指令用法）
