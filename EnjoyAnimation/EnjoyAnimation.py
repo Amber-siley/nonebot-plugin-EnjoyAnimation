@@ -12,7 +12,7 @@ from nonebot_plugin_htmlrender import (
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
-plugin_version="0.0.4b0"
+plugin_version="0.0.4"
 animation=on_command("番剧更新")
 animation_infor=on_command("番剧信息")
 search_number=on_command("番剧查询")
