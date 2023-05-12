@@ -10,7 +10,7 @@
 ```
 pip install --upgrade EnjoyAnimation
 ```
-
+若使用中有丢失信息的情况存在，请执行”番剧更新“指令（强制更新番剧信息）
 ### 插件依赖
 插件：```nonebot-plugin-apscheduler nonebot-plugin-htmlrender```
 
