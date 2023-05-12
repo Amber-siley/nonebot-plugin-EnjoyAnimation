@@ -12,13 +12,13 @@ from nonebot_plugin_htmlrender import (
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
-plugin_version="beta 0.0.3"
+plugin_version="0.0.4b0"
 animation=on_command("番剧更新")
 animation_infor=on_command("番剧信息")
 search_number=on_command("番剧查询")
 animation_help=on_command("番剧帮助")
 upgrade_animation_today=on_command("今日新番")
-emmmm=on_keyword(keywords=["emm","233","hhh","哈哈哈","6","哦哦","奥奥","嗯嗯","哈哈","呃呃"])#5bCx5L2g5pW36KGN5oiR5piv5ZCn😅
+emmmm=on_keyword(keywords=["哦哦","奥奥","呃呃"])#5bCx5L2g5pW36KGN5oiR5piv5ZCn😅
 sub_drama=on_command("新增追番")
 sub_sub_drama=on_command("取消追番")
 sub_drama_list=on_command("我的追番")
@@ -55,10 +55,15 @@ animation_tmp=animation_config.animation_time
 animation_default_return_img=animation_config.animation_default_return_img
 animation_hour=animation_tmp[0]
 animation_minute=animation_tmp[1]
+work_path=os.path.join(os.getcwd(),"data")#指向data路径
+pic_path=os.path.join(work_path,"Animation_pic")#指向pic路径
+animation_path=os.path.join(work_path,"animations.json")#指向animation.json文件路径
+User_setting_path=os.path.join(work_path,"User_setting.json")#指向user setting.json文件路径
+img_tmp_path=os.path.join(pic_path,"img.jpg")#指向临时图片路径
+os.makedirs(pic_path,exist_ok=True)
 
 def animation_informtions() -> None:#爬取番剧详细信息
-    with open("animations.json","w",encoding="utf-8") as f:
-        global month
+    with open(animation_path,"w",encoding="utf-8") as f:
         url="https://yuc.wiki/"+str(datetime.now().year)+(month[datetime.now().month-1])+"/"#拼接成当前季度番剧的查询网址
         url_html=requests.get(url=url,headers=yuc_header)
         url_txt=url_html.text
@@ -66,8 +71,6 @@ def animation_informtions() -> None:#爬取番剧详细信息
         animation_all=url_structure.find_all("div",attrs={"style":"float:left"})
         classesX=["date_title","date_title_","date_title__"]
         data={}
-        os.makedirs("pic",exist_ok=True)
-        work_path="file:///"+os.getcwd()+"\\pic\\"
         def animation_information(classes):
             for animation_boki in animation_all:
                 try:
@@ -78,12 +81,12 @@ def animation_informtions() -> None:#爬取番剧详细信息
                 except AttributeError:
                     continue
                 animation_href=[a["href"] for a in animation_urls]
-                with open (file=".\\pic\\img.jpg",mode="wb") as p:
+                with open (img_tmp_path,mode="wb") as p:
                     p.write(animation_pic.content)
                 try:
-                    os.rename(p.name,f".\\pic\\{animation_name}.jpg")
+                    os.rename(p.name,os.path.join(pic_path,f"{animation_name}.jpg"))
                 except:
-                    os.remove(".\\pic\\img.jpg")
+                    os.remove(img_tmp_path)
                     pass
                 try:
                     animation_date=str(datetime.now().year)+"/"+animation_boki.find("p",attrs={"class":"imgtext"}).get_text()[:-1]
@@ -92,8 +95,9 @@ def animation_informtions() -> None:#爬取番剧详细信息
                 except  AttributeError:
                     animation_date,animation_week,animation_times=None,None,None
                     pass
+                tmp=os.path.join(pic_path,f"{animation_name}.jpg")
                 animation_hrefs={"urls":animation_href,
-                                 "path":f"{work_path}{animation_name}.jpg",
+                                 "path":f"file:///{tmp}",
                                  "date":animation_date,
                                  "week":animation_week,
                                  "time":animation_times
@@ -103,45 +107,45 @@ def animation_informtions() -> None:#爬取番剧详细信息
             animation_information(classes) 
         json.dump(data,f,indent=4,ensure_ascii=False)
 def r_animation_informations_name():#读取番剧json文本信息，读取番剧名称
-    with open("animations.json","r",encoding="utf-8") as r:
+    with open(animation_path,"r",encoding="utf-8") as r:
         work_r=json.load(r)
         return(work_r.keys())
 def r_animation_informations_num_to_name(number:int):#通过序列号查询名字
     return str(list(r_animation_informations_name())[number-1])
 def r_animation_information_path(names) ->str:#通过名称寻找路径
-    with open("animations.json","r",encoding="utf-8") as r:
+    with open(animation_path,"r",encoding="utf-8") as r:
         tmp=json.load(r)
         return tmp[names]["path"]
 def r_animation_information_url(names) -> str:#通过名称寻找网址
-    with open("animations.json","r",encoding="utf-8") as r:
+    with open(animation_path,"r",encoding="utf-8") as r:
         tmp=json.load(r)
         return(tmp[names]["urls"])
 def r_animation_information_date(names) -> str:#返回番剧首播日期
-    with open("animations.json","r",encoding="utf-8") as r:
+    with open(animation_path,"r",encoding="utf-8") as r:
         tmp=json.load(r)
         if tmp[names]["date"]==None:
             return ""
         return(tmp[names]["date"])
 def r_animation_information_week(names)->str:#返回番剧更新周几
-    with open("animations.json","r",encoding="utf-8") as r:
+    with open(animation_path,"r",encoding="utf-8") as r:
         tmp=json.load(r)
         if tmp[names]["week"]==None:
             return " "
         return(tmp[names]["week"])
 def r_animation_information_time(names)->str:#返回当日更新时间
-    with open("animations.json","r",encoding="utf-8") as r:
+    with open(animation_path,"r",encoding="utf-8") as r:
         tmp=json.load(r)
         if tmp[names]["time"]==None:
             return ""
         return(tmp[names]["time"])
 def file_json_store() -> None:#检测json文件是否存在,若存在则跳过，不存在则创建,
     try:
-        with open("animations.json","x",encoding="utf-8"):
+        with open(animation_path,"x",encoding="utf-8"):
             animation_informtions()
             return 0
     except:
         pass
-    with open("animations.json","r",encoding="utf-8") as f:
+    with open(animation_path,"r",encoding="utf-8") as f:
         tmp=json.load(f)
         tmp_y=datetime.strptime(tmp[list(tmp.keys())[0]]["date"],"%Y/%m/%d").strftime("%Y")
         tmp_m=datetime.strptime(tmp[list(tmp.keys())[0]]["date"],"%Y/%m/%d").strftime("%m")
@@ -226,7 +230,7 @@ async def animation_today_(bot:Bot,group=0,user=0):#查询今日更新的番剧�
         await bot.finish(Message(f"可能被风控了捏！{random.choice(random_face)}"))
 def load_user_setting()->list:#返回用户设置
     try:
-        with open("User_setting.json","r",encoding="utf-8") as f:
+        with open(User_setting_path,"r",encoding="utf-8") as f:
             tmp=json.load(f)
             sub_qq_group=tmp["sub_qq_group"]
             Users_sub=tmp["Users_sub"]
@@ -238,8 +242,8 @@ def load_user_setting()->list:#返回用户设置
         return [None,None,None,None,None]
 def user_file_json():#检测是否存在用户配置文件 无则创建
     global plugin_version
-    if not os.path.exists("User_setting.json"):
-        with open("User_setting.json","w",encoding="utf-8") as r:
+    if not os.path.exists(User_setting_path):
+        with open(User_setting_path,"w",encoding="utf-8") as r:
             data_tmp={
                 "sub_qq_group":[],
                 "Users_sub":[],
@@ -250,7 +254,7 @@ def user_file_json():#检测是否存在用户配置文件 无则创建
             json.dump(data_tmp,r,indent=4,ensure_ascii=False) 
     try:
         if load_user_setting()[4]!=plugin_version:
-            with open("User_setting.json","r",encoding="utf-8") as f:
+            with open(User_setting_path,"r",encoding="utf-8") as f:
                 tmp=json.load(f)
                 for i in ["sub_qq_group","Users_sub","Users_sub_animation","sub_time","version"]:
                     if i not in list(tmp.keys()):
@@ -259,31 +263,31 @@ def user_file_json():#检测是否存在用户配置文件 无则创建
                         else:
                             tmp[i]=plugin_version
                 tmp["version"]=plugin_version
-            with open("User_setting.json","w",encoding="utf-8") as f:
+            with open(User_setting_path,"w",encoding="utf-8") as f:
                 json.dump(tmp,f,indent=4,ensure_ascii=False) 
     except json.JSONDecodeError:
-        os.remove("User_setting.json")
+        os.remove(User_setting_path)
         user_file_json()
 user_file_json()
 async def add_user_sub_animation(bot:Bot,event:MessageEvent,numbers):#添加用户追番
     num_list=str(numbers).split(" ")
     msg=""
-    with open("User_setting.json","r",encoding="utf-8") as f:
+    with open(User_setting_path,"r",encoding="utf-8") as f:
         tmp_1=json.load(f)
         if str(event.user_id) not in list(tmp_1["Users_sub_animation"].keys()):
             tmp_1["Users_sub_animation"][str(event.user_id)]=[]
-    with open("User_setting.json","w",encoding="utf-8") as f:
+    with open(User_setting_path,"w",encoding="utf-8") as f:
         json.dump(tmp_1,f,indent=4,ensure_ascii=False)
     for i in num_list:
         try:
             if 0<=int(i)<=len(list(r_animation_informations_name())):
                 i_name=r_animation_informations_num_to_name(int(i))
-                with open("User_setting.json","r",encoding="utf-8") as f:
+                with open(User_setting_path,"r",encoding="utf-8") as f:
                     tmp=json.load(f)
                     if i_name not in tmp["Users_sub_animation"][str(event.user_id)]:
                         tmp["Users_sub_animation"][str(event.user_id)].append(i_name)
                         msg+=i_name+"\n"
-                with open("User_setting.json","w",encoding="utf-8") as f:
+                with open(User_setting_path,"w",encoding="utf-8") as f:
                     json.dump(tmp,f,indent=4,ensure_ascii=False)
         except:
             pass
@@ -364,7 +368,7 @@ async def today_animation():
         await animation_today_(bot=bot,user=i)
 @everyday_push.got("tmp",prompt=f"是否订阅每日推送 Y/N")#新增订阅
 async def everyday_push_setting(bot:Bot,event:MessageEvent):
-    with open("User_setting.json","r",encoding="utf-8") as f:
+    with open(User_setting_path,"r",encoding="utf-8") as f:
         tmp1=event.get_plaintext()
         tmp1_txt=str(tmp1)
         tmp_json=json.load(f)
@@ -388,11 +392,11 @@ async def everyday_push_setting(bot:Bot,event:MessageEvent):
                     await everyday_push.send(message=f'QQ：{user_qq}不可重复订阅')
         else:
             await everyday_push.finish(message=random.choice(random_face))
-    with open("User_setting.json","w",encoding="utf-8") as f:
+    with open(User_setting_path,"w",encoding="utf-8") as f:
         json.dump(tmp_json,f,indent=4,ensure_ascii=False)
 @everyday_push_off.got("tmp",prompt=f"是否取消每日推送 Y/N")#取消订阅
 async def everyday_push_off_setting(bot:Bot,event:MessageEvent):
-    with open("User_setting.json","r",encoding="utf-8") as f:
+    with open(User_setting_path,"r",encoding="utf-8") as f:
         tmp1=event.get_plaintext()
         tmp1_txt=str(tmp1)
         tmp_json=json.load(f)
@@ -416,7 +420,7 @@ async def everyday_push_off_setting(bot:Bot,event:MessageEvent):
                     await everyday_push_off.send(message=f'QQ：{user_qq}无订阅信息')
         else:
             await everyday_push_off.finish(message=random.choice(random_face))
-    with open("User_setting.json","w",encoding="utf-8") as f:
+    with open(User_setting_path,"w",encoding="utf-8") as f:
         json.dump(tmp_json,f,indent=4,ensure_ascii=False)
 @emmmm.handle()#u know,that's right
 async def emm():
@@ -455,7 +459,7 @@ async def sub_sub_list(bot:Bot,event:MessageEvent):
     await sub_sub_drama.send(f"请发送编号捏{random.choice(random_face)}#")
 @sub_sub_drama.got("key")
 async def sub_sub_list_get(bot:Bot,event:MessageEvent):
-    with open("User_setting.json","r",encoding="utf-8") as f:
+    with open(User_setting_path,"r",encoding="utf-8") as f:
         sub_list=event.get_plaintext().split(" ")
         tmp=json.load(f)
         msg,remove_ani="",[]
@@ -478,7 +482,7 @@ async def sub_sub_list_get(bot:Bot,event:MessageEvent):
         msg=f"已取消追番：\n{msg}"
         if not remove_ani:
             await sub_sub_drama.finish(random.choice(random_face))
-    with open("User_setting.json","w",encoding="utf-8") as f:
+    with open(User_setting_path,"w",encoding="utf-8") as f:
         json.dump(tmp,f,indent=4,ensure_ascii=False)
     await text_to_img(sub_sub_drama,msg)
     await sub_sub_drama.finish()
