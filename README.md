@@ -1,6 +1,16 @@
 # nonebot-plugin-EnjoyAnimation
 这是一个基于nonebot，gocqhttp的qq-bot动漫番剧插件
 
+### PS:
+若插件版本为0.0.3及以下，手动删除bot根目录的```animations.json```,```pic文件夹```,```User_setting.json```
+
+（若不想删除```User_setting.json```,可以升级插件后运行一遍bot，然后将根目录的```User_setting.json```剪切到bot根目录中的```data```目录）
+
+更新插件
+```
+pip install --upgrade EnjoyAnimation
+```
+
 ### 插件依赖
 插件：```nonebot-plugin-apscheduler nonebot-plugin-htmlrender```
 
