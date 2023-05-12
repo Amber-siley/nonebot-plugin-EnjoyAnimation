@@ -9,6 +9,8 @@
 更新插件
 ```
 pip install --upgrade EnjoyAnimation
+（若镜像源还未同步可以使用官网进行更新）
+pip install --upgrade --index-url https://pypi.org/simple EnjoyAnimation
 ```
 若使用中有丢失信息的情况存在，请执行”番剧更新“指令（强制更新番剧信息）
 ### 插件依赖
