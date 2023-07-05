@@ -45,6 +45,14 @@ class isotime_format:
     
 class db_lite:
     '''数据库管道'''
+    def commit(func):
+        '''数据修改后，向数据库提交修改的装饰器'''
+        def commit_1(self,*args, **kwargs):
+            func(self,*args, **kwargs)
+            self.conn.commit()
+        return commit_1
+    
+    @commit
     def __init__(self,db_path) -> None:
         self.__db_path=db_path
         self.conn=sqlite3.connect(self.__db_path)
@@ -56,7 +64,7 @@ class db_lite:
                                 start_date date,
                                 JP_start_date_UTC8 date,
                                 CN_start_date,
-                                end_date date,
+                                end_tag integer,
                                 official_url text
                             )
                             ''')
@@ -76,7 +84,7 @@ class db_lite:
                                 foreign key (relation) references animations(id)
                             )
                             ''')
-        self.conn.commit()
+    
     def test_name_db(self,names:list) -> bool:
         '''检测动漫名字存在数据库中'''
         back=False
@@ -89,6 +97,8 @@ class db_lite:
                 back=True
                 break
         return back
+    
+    @commit
     def __universal_insert_db(self,table:str,**kwargs):
         '''通用插入数据库
             
@@ -97,7 +107,7 @@ class db_lite:
                 
                 value 表示insert into values()中的值，可以是sql语句“run(sql语句)”
                 
-            例：在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"end_date":end_date,"official_url":official}
+            例：在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"end_tag":end_tag,"official_url":official}
                 插入sql语句’names‘,{"name":item,"relation":"run(select max(id) from animations)"}'''
         attrbute=str(tuple(kwargs.keys()))
         value=str(tuple(i if i is not None else 'NULL' for i in list(kwargs.values()))).replace("'NULL'","NULL")
@@ -113,14 +123,15 @@ class db_lite:
             self.cursor.execute(sql_text)
         except sqlite3.OperationalError:
             print(sql_text)
-        self.conn.commit()
         
-    def insert_animation_info_db(self,names:list,
+    @commit
+    def insert_animation_info_db(self,
+                                 names:list,
                                  path:str,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
-                                 end_date=None,
+                                 end_tag=None,
                                  urls:list=None,
                                  official:str=None):
         '''插入数据'''
@@ -129,7 +140,7 @@ class db_lite:
             "start_date":start_date,
             "JP_start_date_UTC8":JP_start_date_UTC8,
             "CN_start_date":CN_start_date,
-            "end_date":end_date,
+            "end_tag":end_tag,
             "official_url":official
         }
         self.__universal_insert_db('animations',**tmp_data)
@@ -145,9 +156,15 @@ class db_lite:
                 "relation":"run(select max(id) from animations)"
             }
             self.__universal_insert_db('urls',**tmp_data)
-        self.conn.commit()
-        
-    # def testafter_insert_db(self,names:list,path:str,JP_start_date_UTC8=None,CN_start_date=None,end_date=None,urls:list=None,official:str=None):
+    
+    @commit 
+    def reset_table(self,table):
+        '''重置表'''
+        self.cursor.execute('''
+                            truncate table ?
+                            ''',(table))
+    
+    @commit
     def testafter_insert_db(self,**kwargs):
         '''检测是否存在，不存在则添加，存在则更新'''
         if not self.test_name_db(names=kwargs["names"]):
@@ -156,8 +173,10 @@ class db_lite:
         else:
             #更新
             pass
+        
     def read_db(self):
         pass
+    
     def close_db(self):
         '''关闭数据库'''
         self.cursor.close()
