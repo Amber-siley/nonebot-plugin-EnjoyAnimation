@@ -29,6 +29,9 @@ class isotime_format:
             except ValueError:
                 continue
     def datatime_operation(self,oper:str,unit:str,var:int):
+        '''datetime的运算+/-
+        - oper:"+"/"-"
+        - unit:需要在那=哪部分相加减'''
         if oper in ["+","add","plus"]:
             pos_neg=1
         else:
