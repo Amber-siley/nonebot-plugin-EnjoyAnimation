@@ -6,7 +6,7 @@ class task_infor:
     def __init__(self,type,time_units,func_name,func,run_time=None) -> None:
         self.type:str=type
         self.time_units:dict=time_units
-        self.run_time=run_time
+        self.run_time=run_time              #下次运行时间
         self.all_tick=None
         self.func_name:str=func_name
         self.func=func
@@ -15,7 +15,6 @@ class schedute_lite:
     def __init__(self) -> None: 
         self.job_list=[]
         self.run_job_list=[]
-        self.lock=asyncio.Lock()
         self.thread=threading.Thread(target=self.task_run)
         self.thread.start()
     def add_job(self,type:str,time_str:str):
@@ -60,17 +59,19 @@ class schedute_lite:
         while True:
             self.run_job_list=[]
             task:task_infor
-            for task in self.job_list:
-                # sprint(task.type,task.run_time,datetime.now().strftime("%Y%m%w%d%H%M%S"))
+            for item_i in range(len(self.job_list)):
+                task=self.job_list[item_i]
+                if not task.run_time:
+                    year=task.time_units.get("Y")
+                    month=task.time_units.get("M")
+                    week=task.time_units.get("w")
+                    day=task.time_units.get("d")
+                    hour=task.time_units.get("h")
+                    minute=task.time_units.get("m")
+                    second=task.time_units.get("s")
+                    
                 if task.type=="interval":
                     if not task.run_time:
-                        year=task.time_units.get("Y")
-                        month=task.time_units.get("M")
-                        week=task.time_units.get("w")
-                        day=task.time_units.get("d")
-                        hour=task.time_units.get("h")
-                        minute=task.time_units.get("m")
-                        second=task.time_units.get("s")
                         task.all_tick=year*31536000+month*2592000+week*604800+day*86400+hour*3600+minute*60+second
                         task.run_time=datetime.now()+timedelta(seconds=task.all_tick)
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
@@ -78,68 +79,30 @@ class schedute_lite:
                         self.run_job_list.append(task.func)
                         task.run_time=datetime.now()+timedelta(seconds=task.all_tick)
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
-            await asyncio.sleep(0.1)
-                    # elif task.tick<=0:
-                    #     async with self.lock:
-                    #         self.run_job_list.append(task.func)
-                    #     task.tick=all_time_second
-                    # elif task.tick>0:
-                    #     task.tick-=1
+                        
+                elif task.type=="date":
+                    if not task.run_time:
+                        zip_list=['Y',"m",'w','d','H','M','S']
+                    task.run_time=[f'0{int(i)}' if int(i)<10 else i for i in [item if item!="0" else datetime.now().strftime(f"%{unit}") for item,unit in zip([f"{value}" for key,value in task.time_units.items()],zip_list)]]
+                    if [i.group(1) for i in re.finditer(r"(\d+)a",datetime.now().strftime('%Ya%ma0%wa%da%Ha%Ma%Sa'))] == task.run_time:
+                        self.run_job_list.append(task.func)
+                        self.job_list.pop(item_i)
+                
+                elif task.type=="fixed":
+                    ...
+            await asyncio.sleep(0.5)
+            
     async def start_run_job_list(self):
         '''运行列表'''
         while True:
-            # print(self.run_job_list)
             for task in self.run_job_list:
                 await task()
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.5)
+            
     def task_run(self):
         loop=asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         tasks=[loop.create_task(self.appened_job_list()),loop.create_task(self.start_run_job_list())]
         loop.run_until_complete(asyncio.gather(*tasks))
-        '''
-        # def add_job_1(func:Callable):
-        #     async def add_job_2(*args, **kwargs):
-        #         if type=="interval":
-                    # 间隔
-        #             all_time_second=year*31536000+month*2592000+week*604800+day*86400+hour*3600+minute*60+second
-        #             while True:
-        #                 await asyncio.sleep(all_time_second)
-        #                 await func(*args, **kwargs)
-                        
-        #         elif type=="date":
-        #            #一次性 固定时间
-        #             time_list=[f"{value}" if value>9 else f"0{value}" for key,value in time_units.items()]
-        #             while True:
-        #                 now=datetime.strftime(datetime.now(),"%Yy%mM0%ww%dd%Hh%Mm%Ss")
-        #                 now_list=re.finditer(r"(\d+)[a-zA-Z]",now)
-        #                 tmp,lock=0,False
-        #                 for j,i in zip(now_list,time_list):
-        #                     tmp+=1
-        #                     if not(i=="00" or i==j.group(1)):
-        #                         break
-        #                     if tmp==7:
-        #                         lock=True
-        #                 if lock:
-        #                     await func(*args, **kwargs)
-        #                     self.job_dict.pop(func.__name__)
-        #                     break
-        #                 await asyncio.sleep(1)
-        #     self.job_list.add(add_job_2)
-        #     return add_job_2
-        # return add_job_1
-    
-    # def task_run(self):
-    #     # self.thread_local.job_list=set([])
-    #     job_list=set()
-    #     loop=asyncio.new_event_loop()
-    #     asyncio.set_event_loop(loop)
-    #     while True:
-    #         if job_list.__len__()==0:
-    #             job_list={loop.create_task(i()) for i in self.job_list}
-    #         else:
-    #             done,job_list=loop.run_until_complete(asyncio.wait(job_list,return_when=asyncio.ALL_COMPLETED))
-    #         if job_list.__len__()==0:
-    #             break
-        '''
+        
 timetable=schedute_lite()
