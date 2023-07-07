@@ -57,7 +57,7 @@ class schedute_lite:
     async def appened_job_list(self):
         '''准备运行列表'''
         while True:
-            self.run_job_list=[]
+            self.run_job_list,pop_list=[],[]
             task:task_infor
             for item_i in range(len(self.job_list)):
                 task=self.job_list[item_i]
@@ -80,16 +80,19 @@ class schedute_lite:
                         task.run_time=datetime.now()+timedelta(seconds=task.all_tick)
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
                         
-                elif task.type=="date":
+                elif task.type=="date" or task.type=="fixed":
                     if not task.run_time:
                         zip_list=['Y',"m",'w','d','H','M','S']
+                    if task.all_tick!=None:
+                        task.all_tick=None
+                        continue
                     task.run_time=[f'0{int(i)}' if int(i)<10 else i for i in [item if item!="0" else datetime.now().strftime(f"%{unit}") for item,unit in zip([f"{value}" for key,value in task.time_units.items()],zip_list)]]
-                    if [i.group(1) for i in re.finditer(r"(\d+)a",datetime.now().strftime('%Ya%ma0%wa%da%Ha%Ma%Sa'))] == task.run_time:
+                    if [i.group(1) for i in re.finditer(r"(\d+)a",datetime.now().strftime('%Ya%ma0%wa%da%Ha%Ma%Sa'))] == task.run_time and task.all_tick== None:
                         self.run_job_list.append(task.func)
-                        self.job_list.pop(item_i)
-                
-                elif task.type=="fixed":
-                    ...
+                        task.all_tick=1
+                        if task.type=="date":
+                            pop_list.append(item_i)
+            self.job_list=[self.job_list[i] for i in range(len(self.job_list))  if i not in pop_list]
             await asyncio.sleep(0.5)
             
     async def start_run_job_list(self):
@@ -100,6 +103,7 @@ class schedute_lite:
             await asyncio.sleep(0.5)
             
     def task_run(self):
+        '''线程运行'''
         loop=asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         tasks=[loop.create_task(self.appened_job_list()),loop.create_task(self.start_run_job_list())]
