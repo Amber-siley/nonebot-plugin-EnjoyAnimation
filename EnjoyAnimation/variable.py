@@ -10,5 +10,6 @@ plugin_file_path=os.path.join(work_path,"Animation_admin")              #插件�
 
 #files
 animation_path=os.path.join(plugin_file_path,"animation.db")            #指向animation.db文件路径
+log_db_path=os.path.join(plugin_file_path,"logs.db")                    #日志数据库 路径
 User_setting_path=os.path.join(plugin_file_path,"User_setting.json")    #指向user setting.json文件路径
 img_tmp_path=os.path.join(pic_path,"img.jpg")                           #指向临时图片路径

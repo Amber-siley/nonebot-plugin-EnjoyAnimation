@@ -1,13 +1,13 @@
 import re,asyncio,threading
 from datetime import datetime,timedelta
-from typing import Callable
+from typing import Callable,List
 import time
 
 class task_infor:
     def __init__(self,type:str,time_units:dict,func_name:str,func,run_time=None,task_id=None) -> None:
         self.type=type
         self.time_units=time_units
-        self.run_time=run_time              #下次运行时间
+        self.run_time=run_time         #下次运行时间
         self.all_tick=None
         self.func_name=func_name
         self.func=func
@@ -19,9 +19,10 @@ class task_infor:
 class schedute_lite:
     '''定时任务设置'''
     def __init__(self) -> None: 
-        self.job_list=[]
+        self.job_list:List[task_infor]=[]
         self.run_job_list=[]
         self.stop_tag=False
+        self.look=asyncio.Lock()
         self.thread=threading.Thread(target=self.task_run(),name="timetable")
         self.thread.start()
         
@@ -47,16 +48,17 @@ class schedute_lite:
             >>> @schedute_lite.add_job(“fixed”,"7M23h") #在每个7月23时执行一次
         '''
         time_units={"Y":0,
-                    "M":0,
+                    "m":0,
                     "w":0,
                     "d":0,
-                    "h":0,
-                    "m":0,
-                    "s":0}
-        for unit in time_units:
-            Match=re.search(rf"(\d+){unit}",time_str)
+                    "H":0,
+                    "M":0,
+                    "S":0}
+        zip_list=["Y","M","w","d","h","m","s"]
+        for new_unit,old_unit in zip(time_units,zip_list):
+            Match=re.search(rf"(\d+){old_unit}",time_str)
             if Match:
-                time_units[unit]=int(Match.group(1))
+                time_units[new_unit]=int(Match.group(1))
 
         def add_job_1(func:Callable):
             '''函数装饰器'''
@@ -69,8 +71,7 @@ class schedute_lite:
     async def appened_job_list(self):
         '''准备运行列表'''
         while True:
-            self.run_job_list,pop_list=[],[]
-            task:task_infor
+            pop_list=[]
             if self.stop_tag:
                 for t in self.job_list:
                     t.run_time=None
@@ -79,12 +80,12 @@ class schedute_lite:
                 task=self.job_list[item_i]
                 if not task.run_time:
                     year=task.time_units.get("Y")
-                    month=task.time_units.get("M")
+                    month=task.time_units.get("m")
                     week=task.time_units.get("w")
                     day=task.time_units.get("d")
-                    hour=task.time_units.get("h")
-                    minute=task.time_units.get("m")
-                    second=task.time_units.get("s")
+                    hour=task.time_units.get("H")
+                    minute=task.time_units.get("M")
+                    second=task.time_units.get("S")
                     
                 if task.type=="interval":
                     if not task.run_time:
@@ -92,24 +93,27 @@ class schedute_lite:
                         task.run_time=datetime.now()+timedelta(seconds=task.all_tick)
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
                     if datetime.now().strftime("%Y%m%w%d%H%M%S")==task.run_time:
-                        self.run_job_list.append(task.func)
+                        async with self.look:
+                            self.run_job_list.append(task.func)
                         task.run_time=datetime.now()+timedelta(seconds=task.all_tick)
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
                         
                 elif task.type=="date" or task.type=="fixed":
-                    if not task.run_time:
-                        zip_list=['Y',"m",'w','d','H','M','S']
-                    if task.all_tick!=None:
-                        task.all_tick=None
-                        continue
-                    task.run_time=[f'0{int(i)}' if int(i)<10 else i for i in [item if item!="0" else datetime.now().strftime(f"%{unit}") for item,unit in zip([f"{value}" for key,value in task.time_units.items()],zip_list)]]
-                    if [i.group(1) for i in re.finditer(r"(\d+)a",datetime.now().strftime('%Ya%ma0%wa%da%Ha%Ma%Sa'))] == task.run_time and task.all_tick== None:
-                        self.run_job_list.append(task.func)
-                        task.all_tick=1
+                    if 0 in task.time_units.values():
+                        task.time_units={i:j for i,j in task.time_units.items() if j !=0}
+                    lock=True
+                    for i,j in task.time_units.items():
+                        if j != int(datetime.now().strftime(f"%{i}")):
+                            lock=False
+                            break
+                    if lock and task.run_time!=datetime.now().strftime("%Y%m%w%d%H%M%S"):
+                        async with self.look:
+                            self.run_job_list.append(task.func)
+                        task.run_time=datetime.now().strftime("%Y%m%w%d%H%M%S")
                         if task.type=="date":
-                            pop_list.append(item_i)
-            self.job_list=[self.job_list[i] for i in range(len(self.job_list))  if i not in pop_list]
-            await asyncio.sleep(0.5)
+                            pop_list.append(task)
+            self.job_list=[i for i in self.job_list if i not in pop_list]
+            await asyncio.sleep(0.1)
             
     async def start_run_job_list(self):
         '''运行列表'''
@@ -118,7 +122,9 @@ class schedute_lite:
                 break
             for task in self.run_job_list:
                 await task()
-            await asyncio.sleep(0.5)
+            async with self.look:
+                self.run_job_list=[]
+            await asyncio.sleep(0.1)
             
     def task_run(self):
         '''线程运行'''

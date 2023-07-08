@@ -2,10 +2,10 @@ from nonebot import on_keyword,on_command,require,get_driver,get_bot
 from nonebot.adapters.onebot.v11 import ActionFailed,Message,MessageSegment,Bot,MessageEvent
 from nonebot.params import Arg,CommandArg
 from nonebot.matcher import Matcher
-import requests,os,json,random,sqlite3 #
-from bs4 import BeautifulSoup   #
+import requests,os,json,random,sqlite3 #requests
+from bs4 import BeautifulSoup   #bs4
 from datetime import datetime,timedelta
-from lxml import html,etree #
+from lxml import html,etree #lxml
 from .QBsimpleAPI import *
 from .classes import *
 from .schedute_lite import *
@@ -18,7 +18,7 @@ from .variable import (
 )
 
 def get_animation_infors():
-    '''通过api获取动漫信息并放入数据库'''
+    '''通过bgm api获取动漫信息并放入数据库'''
     onair="https://bgmlist.com/api/v1/bangumi/onair"
     site="https://bgmlist.com/api/v1/bangumi/site"
     onair_json=json.loads(requests.get(url=onair,headers=header).text)["items"]
@@ -27,9 +27,9 @@ def get_animation_infors():
     for i in onair_json:
         names=[item for sublist in i["titleTranslate"].values() for item in sublist]+[i["title"]]
         official=i["officialSite"]
-        start_date=isotime_format(i["begin"]).datatime_operation("add","hours",8)
+        start_date=isotime_format(i["begin"]).datetime_operation("add","hours",8)
         try:
-            JP_start_date_UTC8=isotime_format(i["broadcast"]).datatime_operation("add","hours",8)
+            JP_start_date_UTC8=isotime_format(i["broadcast"]).datetime_operation("add","hours",8)
         except KeyError:
             JP_start_date_UTC8=None
         # end_date=[i["end"] if i["end"] != "" else None][0]
@@ -71,5 +71,6 @@ def bot_start_function():
     '''插件初始化函数'''
     dir_ready()
     get_animation_infors()
+    
 
 bot_start_function()

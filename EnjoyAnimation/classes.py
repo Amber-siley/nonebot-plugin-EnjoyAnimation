@@ -28,7 +28,7 @@ class isotime_format:
                 break
             except ValueError:
                 continue
-    def datatime_operation(self,oper:str,unit:str,var:int):
+    def datetime_operation(self,oper:str,unit:str,var:int):
         '''datetime的运算+/-
         - oper:"+"/"-"
         - unit:需要在那=哪部分相加减'''
@@ -47,7 +47,7 @@ class isotime_format:
         return str(self.time_datetime)
     
 class db_lite:
-    '''数据库管道'''
+    '''动漫数据库管道'''
     def commit(func):
         '''数据修改后，向数据库提交修改的装饰器'''
         def commit_1(self,*args, **kwargs):
@@ -69,7 +69,7 @@ class db_lite:
                                 CN_start_date,
                                 end_tag integer,
                                 official_url text
-                            )
+                            ) 
                             ''')
         self.cursor.execute(''' 
                             create table if not exists urls(
@@ -87,7 +87,8 @@ class db_lite:
                                 foreign key (relation) references animations(id)
                             )
                             ''')
-    
+    def log_db(self,):
+        ...
     def test_name_db(self,names:list) -> bool:
         '''检测动漫名字存在数据库中'''
         back=False
@@ -118,10 +119,11 @@ class db_lite:
         insert into {table} {attrbute}
         values{value}
         ''' 
-        run=r"'run(.*?)'"
-        run_command=re.search(run,sql_text)
-        if run_command:
-            sql_text=re.sub(run,run_command.group(1),sql_text)
+        # run=r"'run(.*?)'"
+        # run_command=re.search(run,sql_text)
+        # if run_command:
+        #     sql_text=re.sub(run,run_command.group(1),sql_text)
+        sql_text=self.__run_command(r"'run(.*?)'",sql_text)
         try:
             self.cursor.execute(sql_text)
         except sqlite3.OperationalError:
@@ -176,9 +178,24 @@ class db_lite:
         else:
             #更新
             pass
-        
-    def read_db(self):
-        pass
+    
+    def __run_command(self,rule:str,sql_text):
+        sql_list=[]
+        run=re.finditer(rule,sql_text)
+        if run:
+            for i in run:
+                sql_list.append(i.group(1))
+            for i in sql_list:
+                sql_text=re.sub(rule,i,sql_text,count=1)
+        return sql_text
+    
+    def __universal_select_db(self,table:str,*args):
+        attribut=str(args).replace("[","").replace("]",'')
+        rule=r'run\((.*?)\)'
+        run=re.search(rule,attribut)
+        if run:
+            run=re.sub(rule,)
+        print(attribut)
     
     def close_db(self):
         '''关闭数据库'''
