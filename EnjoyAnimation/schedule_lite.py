@@ -3,7 +3,7 @@ from datetime import datetime,timedelta
 from typing import Callable,List
 
 class task_infor:
-    def __init__(self,type:str,time_units:dict,func_name:str,func,run_time=None,task_id=None) -> None:
+    def __init__(self,type:str,time_units:dict,func_name:str,func,first_run,run_time=None,task_id=None) -> None:
         self.type=type
         self.time_units=time_units
         self.run_time=run_time         #下次运行时间
@@ -14,7 +14,7 @@ class task_infor:
             self.task_id=task_id
         else:
             self.task_id=id(func)
-        
+        self.first_run=first_run
 class schedule_lite:
     '''定时任务设置'''
     def __init__(self) -> None: 
@@ -24,8 +24,11 @@ class schedule_lite:
         self.lock=asyncio.Lock()
         self.thread=threading.Thread(target=self.task_run(),name="timetable")
         self.thread.start()
-        
-    def add_job(self,type:str,time_str:str,task_id:int=None):
+    
+    @property
+    def status(self):
+        return self.thread.is_alive()
+    def add_job(self,type:str,time_str:str,task_id:int=None,first_run:bool=False):
         '''type-->类型字符串:
             - （interval------------间隔执行）
             - （fixed----------固定时间执行）   
@@ -46,13 +49,13 @@ class schedule_lite:
             >>> @schedute_lite.add_job(“fixed”,"23h20m") #在每天23时20分执行一次
             >>> @schedute_lite.add_job(“fixed”,"7M23h") #在每个7月23时执行一次
         '''
-        time_units={"Y":0,
-                    "m":0,
-                    "w":0,
-                    "d":0,
-                    "H":0,
-                    "M":0,
-                    "S":0}
+        time_units={"Y":None,
+                    "m":None,
+                    "w":None,
+                    "d":None,
+                    "H":None,
+                    "M":None,
+                    "S":None}
         zip_list={"Y":"Y","M":"m","w":"w","d":"d","h":"H","m":"M","s":"S"}
         Matches=re.findall(r"(\d+)([a-zA-Z])",time_str)
         for Match in Matches:
@@ -66,7 +69,7 @@ class schedule_lite:
             '''函数装饰器'''
             async def add_job_2(*args, **kwargs):
                 return await func(*args, **kwargs)
-            self.job_list.append(task_infor(type,time_units,func.__name__,add_job_2,task_id=task_id))
+            self.job_list.append(task_infor(type,time_units,func.__name__,add_job_2,task_id=task_id,first_run=first_run))
             return add_job_2
         return add_job_1
 
@@ -80,17 +83,21 @@ class schedule_lite:
                 break
             for item_i in range(len(self.job_list)):
                 task=self.job_list[item_i]
-                if not task.run_time:
-                    year=task.time_units.get("Y")
-                    month=task.time_units.get("m")
-                    week=task.time_units.get("w")
-                    day=task.time_units.get("d")
-                    hour=task.time_units.get("H")
-                    minute=task.time_units.get("M")
-                    second=task.time_units.get("S")
+
+                if task.first_run:
+                    self.run_job_list.append(task.func)
+                    task.first_run=False
                     
                 if task.type=="interval":
                     if not task.run_time:
+                        task.time_units={unit:(val if val is not None else 0) for unit,val in task.time_units.items()}
+                        year=task.time_units.get("Y")
+                        month=task.time_units.get("m")
+                        week=task.time_units.get("w")
+                        day=task.time_units.get("d")
+                        hour=task.time_units.get("H")
+                        minute=task.time_units.get("M")
+                        second=task.time_units.get("S")
                         task.all_tick=year*31536000+month*2592000+week*604800+day*86400+hour*3600+minute*60+second
                         task.run_time=datetime.now()+timedelta(seconds=task.all_tick)
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
@@ -101,8 +108,8 @@ class schedule_lite:
                         task.run_time=task.run_time.strftime("%Y%m%w%d%H%M%S")
                         
                 elif task.type=="date" or task.type=="fixed":
-                    if 0 in task.time_units.values():
-                        task.time_units={i:j for i,j in task.time_units.items() if j !=0}
+                    if None in task.time_units.values():
+                        task.time_units={i:j for i,j in task.time_units.items() if j !=None}
                     lock=True
                     for i,j in task.time_units.items():
                         if j != int(datetime.now().strftime(f"%{i}")):

@@ -1,5 +1,6 @@
 import json,sqlite3,re
 from datetime import datetime,timedelta
+from typing import List
 
 class json_files:
     '''json管道'''
@@ -67,7 +68,7 @@ class db_lite:
                                 start_date date,
                                 JP_start_date_UTC8 date,
                                 CN_start_date,
-                                end_tag integer,
+                                status,
                                 official_url text
                             ) 
                             ''')
@@ -111,7 +112,7 @@ class db_lite:
                 
                 value 表示insert into values()中的值，可以是sql语句“run(sql语句)”
                 
-            例：在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"end_tag":end_tag,"official_url":official}
+            例：在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"status":status,"official_url":official}
                 插入sql语句’names‘,{"name":item,"relation":"run(select max(id) from animations)"}'''
         attrbute=str(tuple(kwargs.keys()))
         value=str(tuple(i if i is not None else 'NULL' for i in list(kwargs.values()))).replace("'NULL'","NULL")
@@ -119,10 +120,6 @@ class db_lite:
         insert into {table} {attrbute}
         values{value}
         ''' 
-        # run=r"'run(.*?)'"
-        # run_command=re.search(run,sql_text)
-        # if run_command:
-        #     sql_text=re.sub(run,run_command.group(1),sql_text)
         sql_text=self.__run_command(r"'run(.*?)'",sql_text)
         try:
             self.cursor.execute(sql_text)
@@ -136,7 +133,7 @@ class db_lite:
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
-                                 end_tag=None,
+                                 status=None,
                                  urls:list=None,
                                  official:str=None):
         '''插入数据'''
@@ -145,7 +142,7 @@ class db_lite:
             "start_date":start_date,
             "JP_start_date_UTC8":JP_start_date_UTC8,
             "CN_start_date":CN_start_date,
-            "end_tag":end_tag,
+            "status":status,
             "official_url":official
         }
         self.__universal_insert_db('animations',**tmp_data)
@@ -180,6 +177,9 @@ class db_lite:
             pass
     
     def __run_command(self,rule:str,sql_text):
+        '''指令解析
+        
+        \'run(select max(id) from animations)\''''
         sql_list=[]
         run=re.finditer(rule,sql_text)
         if run:
@@ -189,14 +189,28 @@ class db_lite:
                 sql_text=re.sub(rule,i,sql_text,count=1)
         return sql_text
     
-    def __universal_select_db(self,table:str,*args):
-        attribut=str(args).replace("[","").replace("]",'')
-        rule=r'run\((.*?)\)'
-        run=re.search(rule,attribut)
-        if run:
-            run=re.sub(rule,)
-        print(attribut)
-    
+    def __universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None)->list[tuple] | list:
+        '''通用查询
+        - table：表
+        - attribute：返回属性可以是聚合函数，比如run(sum(id))
+        - where：条件
+        - like：近似值'''
+        if isinstance(attribute,tuple):
+            attribute=str(attribute)[1:-1].replace("'","")
+        attribute=self.__run_command(r'run\((.*?\))\)',attribute)
+        sql_text=f'''select {attribute} from {table} where {where} '''
+        if like:
+            sql_text+=f"like '{like}'"
+        self.cursor.execute(sql_text)
+        sql_re=self.cursor.fetchall()
+        lock=True
+        for i in sql_re:
+            if len(i)>1:
+                lock=False
+                break
+        if lock:
+            sql_re=[i for tup in sql_re for i in tup]
+        return sql_re
     def close_db(self):
         '''关闭数据库'''
         self.cursor.close()
