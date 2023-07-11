@@ -1,6 +1,7 @@
-import json,sqlite3,re
+import json,sqlite3,re,difflib
 from datetime import datetime,timedelta
 from typing import List
+from .variable import enjoy_log
 
 class json_files:
     '''json管道'''
@@ -64,7 +65,8 @@ class db_lite:
         self.cursor.execute('''
                             create table if not exists animations(
                                 id integer primary key,
-                                path text not null,
+                                pic_path text,
+                                video_path text,
                                 start_date date,
                                 JP_start_date_UTC8 date,
                                 CN_start_date,
@@ -88,17 +90,13 @@ class db_lite:
                                 foreign key (relation) references animations(id)
                             )
                             ''')
-    def log_db(self,):
-        ...
-    def test_name_db(self,names:list) -> bool:
-        '''检测动漫名字存在数据库中'''
-        back=False
-        self.cursor.execute('''
-                            select name from names
-                            ''')
-        tmp_list=self.cursor.fetchall()
+
+    def test_name_db(self,names:list,urls:list=None) -> bool:
+        '''检测动漫信息存在数据库中，存在则补充或者无视'''
+        back,num=False,None
+        tmp_list=self.universal_select_db(table="names",attribute="name")
         for i in names:
-            if i in [all_list for sublist in tmp_list for all_list in sublist]:
+            if i in tmp_list:
                 back=True
                 break
         return back
@@ -124,40 +122,103 @@ class db_lite:
         try:
             self.cursor.execute(sql_text)
         except sqlite3.OperationalError:
-            print(sql_text)
+            enjoy_log.error(f"{sql_text}语法错误")
         
     @commit
     def insert_animation_info_db(self,
-                                 names:list,
-                                 path:str,
+                                 names:list[str],
+                                 pic_path:str,
+                                 video_path:str=None,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
                                  status=None,
                                  urls:list=None,
                                  official:str=None):
-        '''插入数据'''
+        '''插入animations数据'''
+        really=True
+        num=None
+        tmp_list=self.universal_select_db(table="names",attribute="name")
+        for i in names:
+            i=re.sub(r"[,，?？！~]","",i).replace(" ","")
+            if len(i)>5:
+                rou=i[:round(len(i)*0.8)]
+            else:
+                rou=i
+            for j in tmp_list:
+                z=re.sub(r"[,，?？！~]","",j).replace(" ","")
+                Match=difflib.SequenceMatcher(None,rou,z[:len(rou)])
+                if Match.ratio() >= 0.75:
+                    num=self.universal_select_db("names","relation",f"name=\"{j}\"")[0]
+                    # enjoy_log.info(f"{j} 的别称 {i} 以添加至表names,其中 {rou} 置信度为 {Match.ratio()}")
+                    really=False
+                    break
+        if really:
+            tmp_data={
+                "pic_path":pic_path,
+                "video_path":video_path,
+                "start_date":start_date,
+                "JP_start_date_UTC8":JP_start_date_UTC8,
+                "CN_start_date":CN_start_date,
+                "status":status,
+                "official_url":official
+            }
+            self.__universal_insert_db('animations',**tmp_data)
+            for i in names:
+                tmp_data={
+                    "name":i,
+                    "relation":"run(select max(id) from animations)"
+                }
+                self.__universal_insert_db('names',**tmp_data)
+                # enjoy_log.error(f"{i} 未找到别称 已添加进数据库")
+            for i in urls:
+                tmp_data={
+                    "url":i,
+                    "relation":"run(select max(id) from animations)"
+                }
+                self.__universal_insert_db('urls',**tmp_data)
+        else:
+            for i in names:
+                tmp_data={
+                    "name":i,
+                    "relation":num
+                }
+                self.__universal_insert_db("names",**tmp_data)
+            for i in urls:
+                tmp_data={
+                    "url":i,
+                    "relation":num
+                }
+                self.__universal_insert_db('urls',**tmp_data)
+            tmp_data={
+                "pic_path":pic_path
+            }
+            self.__universal_update_db("animations",f"id={num}",None,**tmp_data)
+    
+    @commit
+    def update_animation_info_db(self,
+                                 names:list,
+                                 pic_path:str,
+                                 video_path:str=None,
+                                 start_date=None,
+                                 JP_start_date_UTC8=None,
+                                 CN_start_date=None,
+                                 status=None,
+                                 urls:list=None,
+                                 official:str=None):
+        '''更新animations数据'''
         tmp_data={
-            "path":path,
+            "pic_path":pic_path,
+            "video_path":video_path,
             "start_date":start_date,
             "JP_start_date_UTC8":JP_start_date_UTC8,
             "CN_start_date":CN_start_date,
             "status":status,
             "official_url":official
         }
-        self.__universal_insert_db('animations',**tmp_data)
-        for i in names:
-            tmp_data={
-                "name":i,
-                "relation":"run(select max(id) from animations)"
-            }
-            self.__universal_insert_db('names',**tmp_data)
-        for i in urls:
-            tmp_data={
-                "url":i,
-                "relation":"run(select max(id) from animations)"
-            }
-            self.__universal_insert_db('urls',**tmp_data)
+        tmp_name=f"\"{names[0]}\""
+        index=self.universal_select_db("names","relation",f"name={tmp_name}")[0]
+        self.__universal_update_db("animations",f"id={index}",**tmp_data)
     
     @commit 
     def reset_table(self,table):
@@ -174,7 +235,7 @@ class db_lite:
             self.insert_animation_info_db(**kwargs)
         else:
             #更新
-            pass
+            self.update_animation_info_db(**kwargs)
     
     def __run_command(self,rule:str,sql_text):
         '''指令解析
@@ -189,7 +250,7 @@ class db_lite:
                 sql_text=re.sub(rule,i,sql_text,count=1)
         return sql_text
     
-    def __universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None)->list[tuple] | list:
+    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None)->list[tuple] | list:
         '''通用查询
         - table：表
         - attribute：返回属性可以是聚合函数，比如run(sum(id))
@@ -201,7 +262,10 @@ class db_lite:
         sql_text=f'''select {attribute} from {table} where {where} '''
         if like:
             sql_text+=f"like '{like}'"
-        self.cursor.execute(sql_text)
+        try:
+            self.cursor.execute(sql_text)
+        except sqlite3.OperationalError:
+            enjoy_log.error(f"{sql_text}语法错误")
         sql_re=self.cursor.fetchall()
         lock=True
         for i in sql_re:
@@ -211,6 +275,30 @@ class db_lite:
         if lock:
             sql_re=[i for tup in sql_re for i in tup]
         return sql_re
+    
+    @commit
+    def __universal_update_db(self,table:str,where:str=None,like:str=None,**kwargs):
+        '''通用更新
+        - table：表
+        - where：条件
+        - like：近似值
+        - **kwargs：需要更新的属性：值的字典'''
+        column_val=""
+        for column,value in kwargs.items():
+            if value is not None:
+                column_val+=f'{str(column)}="{str(value)}",'
+        sql_text=f'''
+        update {table}
+        set {column_val[:-1]}
+        where {where} 
+        '''
+        if like:
+            sql_text+=f"like '{like}'"
+        try:
+            self.cursor.execute(sql_text)
+        except sqlite3.OperationalError:
+            enjoy_log.error(f"{sql_text}语法错误")
+        
     def close_db(self):
         '''关闭数据库'''
         self.cursor.close()
