@@ -71,6 +71,7 @@ class db_lite:
                                 JP_start_date_UTC8 date,
                                 CN_start_date,
                                 status,
+                                qb_uid,
                                 official_url text
                             ) 
                             ''')
