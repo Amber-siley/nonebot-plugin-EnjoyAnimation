@@ -1,7 +1,11 @@
-import json,sqlite3,re,difflib
+import json,sqlite3,re,difflib,requests
 from datetime import datetime,timedelta
+from urllib.parse import unquote
 from typing import List
-from .variable import enjoy_log
+from .variable import (
+    header,
+    enjoy_log
+)
 
 class json_files:
     '''json管道'''
@@ -92,9 +96,11 @@ class db_lite:
                             )
                             ''')
 
-    def test_name_db(self,names:list,urls:list=None) -> bool:
-        '''检测动漫信息存在数据库中，存在则补充或者无视'''
-        back,num=False,None
+    def test_name_db(self,names:list | str) -> bool:
+        '''检测动漫信息是否存在数据库中'''
+        back=False
+        if isinstance(names,str):
+            names=[names]
         tmp_list=self.universal_select_db(table="names",attribute="name")
         for i in names:
             if i in tmp_list:
@@ -138,22 +144,40 @@ class db_lite:
                                  official:str=None):
         '''插入animations数据'''
         really=True
-        num=None
         tmp_list=self.universal_select_db(table="names",attribute="name")
-        for i in names:
-            i=re.sub(r"[,，?？！~]","",i).replace(" ","")
-            if len(i)>5:
-                rou=i[:round(len(i)*0.8)]
-            else:
-                rou=i
-            for j in tmp_list:
-                z=re.sub(r"[,，?？！~]","",j).replace(" ","")
-                Match=difflib.SequenceMatcher(None,rou,z[:len(rou)])
-                if Match.ratio() >= 0.75:
-                    num=self.universal_select_db("names","relation",f"name=\"{j}\"")[0]
-                    enjoy_log.debug(f"{j} 的别称 {i} 以添加至表names,其中 {rou} 置信度为 {Match.ratio()}")
-                    really=False
-                    break
+        
+        def test_name(name_list:list | str)->tuple[bool,int]:
+            '''检测是否不近似存在于names表中'''
+            if isinstance(name_list,str):
+                name_list=[name_list]
+            for i in name_list:
+                i=re.sub(r"[,，?？！~]","",i).replace(" ","")
+                if len(i)>5:
+                    rou=i[:round(len(i)*0.8)]
+                else:
+                    rou=i
+                for j in tmp_list:
+                    z=re.sub(r"[,，?？！~]","",j).replace(" ","")
+                    Match=difflib.SequenceMatcher(None,rou,z[:len(rou)])
+                    if Match.ratio() >= 0.7:
+                        num=self.universal_select_db("names","relation",f"name=\"{j}\"")[0]
+                        enjoy_log.debug(f"{j} 的别称为 {i} 其中 {rou} 置信度为 {Match.ratio()}")
+                        return False,num
+            return True,None
+        
+        really,num=test_name(names)
+        
+        if pic_path and really:
+            for i in names:
+                i=re.sub(r"第\d期","",i)
+                tmp=requests.get(url=f"https://zh.moegirl.org.cn/{i}",headers=header)
+                Match=re.search(r'"title":\s*"([^"]*)"',tmp.text)
+                if Match:
+                    name=Match.group(1)
+                    really,num=test_name(name)
+                    if not really:
+                        enjoy_log.debug(f"别称存在 {i}")
+
         if really:
             tmp_data={
                 "pic_path":pic_path,

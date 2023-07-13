@@ -25,7 +25,15 @@ async def get_animation_infors():
     site_json=json.loads(requests.get(url=site,headers=header,timeout=10).text)
     enjoy_log.info("Animation database Updating......")
     for i in onair_json:
-        names=[item for sublist in i["titleTranslate"].values() for item in sublist]+[i["title"]]
+        # names=[item for sublist in i["titleTranslate"].values() for item in sublist]+[i["title"]]
+        names=[]
+        try:
+            names+=[item for item in i["titleTranslate"]["zh-Hans"]]
+        except:...
+        try:
+            names+=[item for item in i["titleTranslate"]["zh-Hans"]]
+        except:...
+        names+=[item for subkey in i["titleTranslate"].keys() if subkey not in ["zh-Hans","zh-Hant"] for item in i["titleTranslate"][subkey]]+[i["title"]]
         official=i["officialSite"]
         start_date=isotime_format(i["begin"]).datetime_operation("add","hours",8)
         try:
