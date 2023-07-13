@@ -81,16 +81,14 @@ class db_lite:
                             ''')
         self.cursor.execute(''' 
                             create table if not exists urls(
-                                id integer primary key,
-                                url text not null,
+                                url text not null primary key,
                                 relation integer,
                                 foreign key (relation) references animations(id)
                             )
                             ''')
         self.cursor.execute('''
                             create table if not exists names(
-                                id integer primary key,
-                                name text not null,
+                                name text not null primary key,
                                 relation integer,
                                 foreign key (relation) references animations(id)
                             )
@@ -130,6 +128,8 @@ class db_lite:
             self.cursor.execute(sql_text)
         except sqlite3.OperationalError:
             enjoy_log.error(f"{sql_text}语法错误")
+        except sqlite3.IntegrityError:
+            enjoy_log.error(f"{sql_text}已存在")
         
     @commit
     def insert_animation_info_db(self,
@@ -190,31 +190,35 @@ class db_lite:
             }
             self.__universal_insert_db('animations',**tmp_data)
             for i in names:
-                tmp_data={
-                    "name":i,
-                    "relation":"run(select max(id) from animations)"
-                }
-                self.__universal_insert_db('names',**tmp_data)
-                enjoy_log.debug(f"{i} 未找到别称 已添加进数据库")
+                if i not in self.universal_select_db("names","name",f'name="{i}"'):
+                    tmp_data={
+                        "name":i,
+                        "relation":"run(select max(id) from animations)"
+                    }
+                    self.__universal_insert_db('names',**tmp_data)
+                    enjoy_log.debug(f"{i} 未找到别称 已添加进数据库")
             for i in urls:
-                tmp_data={
-                    "url":i,
-                    "relation":"run(select max(id) from animations)"
-                }
-                self.__universal_insert_db('urls',**tmp_data)
+                if i not in self.universal_select_db("urls","url",f'url="{i}"'):
+                    tmp_data={
+                        "url":i,
+                        "relation":"run(select max(id) from animations)"
+                    }
+                    self.__universal_insert_db('urls',**tmp_data)
         else:
             for i in names:
-                tmp_data={
-                    "name":i,
-                    "relation":num
-                }
-                self.__universal_insert_db("names",**tmp_data)
+                if i not in self.universal_select_db("names","name",f'name="{i}"'):
+                    tmp_data={
+                        "name":i,
+                        "relation":num
+                    }
+                    self.__universal_insert_db("names",**tmp_data)
             for i in urls:
-                tmp_data={
-                    "url":i,
-                    "relation":num
-                }
-                self.__universal_insert_db('urls',**tmp_data)
+                if i not in self.universal_select_db("urls","url",f'url="{i}"'):
+                    tmp_data={
+                        "url":i,
+                        "relation":num
+                    }
+                    self.__universal_insert_db('urls',**tmp_data)
             tmp_data={
                 "pic_path":pic_path
             }
