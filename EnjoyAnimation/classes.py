@@ -151,7 +151,7 @@ class db_lite:
                 Match=difflib.SequenceMatcher(None,rou,z[:len(rou)])
                 if Match.ratio() >= 0.75:
                     num=self.universal_select_db("names","relation",f"name=\"{j}\"")[0]
-                    # enjoy_log.info(f"{j} 的别称 {i} 以添加至表names,其中 {rou} 置信度为 {Match.ratio()}")
+                    enjoy_log.debug(f"{j} 的别称 {i} 以添加至表names,其中 {rou} 置信度为 {Match.ratio()}")
                     really=False
                     break
         if really:
@@ -171,7 +171,7 @@ class db_lite:
                     "relation":"run(select max(id) from animations)"
                 }
                 self.__universal_insert_db('names',**tmp_data)
-                # enjoy_log.error(f"{i} 未找到别称 已添加进数据库")
+                enjoy_log.debug(f"{i} 未找到别称 已添加进数据库")
             for i in urls:
                 tmp_data={
                     "url":i,

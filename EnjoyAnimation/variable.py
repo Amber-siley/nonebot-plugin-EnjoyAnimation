@@ -24,14 +24,15 @@ os.makedirs(video_path,exist_ok=True)
 os.makedirs(plugin_file_path,exist_ok=True)
 
 #nonebot
-try:
-    dirver=get_driver()             #驱动器
-except:
-    ...
+dirver=get_driver()             #驱动器
+config=dirver.config            #配置信息
+log_level=config.log_level      #日志等级
+
+
 
 #logging
 enjoy_log=logging.getLogger("EnjoyAnimation")                   #日志输出
-enjoy_log.setLevel(logging.INFO)
+enjoy_log.setLevel(log_level)
 log_path=os.path.join(plugin_file_path,"EnjoyAnimation.log")    #日志文件路径
 fg=logging.FileHandler(filename=log_path,encoding="utf-8")
 formation=logging.Formatter("%(asctime)s %(levelname)s: %(message)s",)                               #输出到文件
