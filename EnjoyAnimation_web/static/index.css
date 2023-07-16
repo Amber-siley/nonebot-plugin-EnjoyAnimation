@@ -1,0 +1,94 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html {
+    font-size: 10px;
+}
+html::before{
+    content: "";
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+    position: fixed;
+    background: linear-gradient(120deg,#86eddf 0%,#ba25ff 100%) no-repeat;
+}
+::selection{
+    color: aliceblue;
+    background-color: rgb(177, 87, 255);
+}
+.box{
+    display: flex;
+    overflow: hidden;
+    width: 90rem;
+    height: 55rem;
+    background-color: rgba(255, 255,255, 30%);
+    border-radius: 1.5rem;
+    margin: 10% auto;
+    box-shadow: 0 0 0.1rem 0.2rem rgb(0 0 0 / 10%);
+}
+.box .left{
+    position: relative;
+    width: 35%;
+    height: 100%;
+    background-color: rgb(0, 251, 255);
+}
+.box .left::before{
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: url("./login_icon.jpg");
+    background-size: cover;
+    opacity: 0.8;
+}
+.box .right{
+    display: flex;
+    width: 65%;
+    flex-direction: column;
+    align-items: center;
+}
+.box .right h4{
+    color:rgb(188,42,251);
+    font-size: 3rem;
+    margin-top: 6rem;
+}
+.box .right form{
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 5%;
+    justify-content: center;
+}
+.box .right form .acc{
+    content: none;
+    width: 80%;
+    height: 5rem;
+    font-size: 1.6rem;
+    margin-top: 5rem;
+    padding:1rem 0 0 1.6rem;
+    border: none;
+    border-bottom: 1px solid rgb(144,129,241);
+    color: rgb(102, 112, 251);
+    background-color: rgba(0,0,0,0);
+}
+.right form .acc:focus{
+    outline: none;
+    color:#925afc;
+    padding:1rem 0 0 1.6rem;
+}
+.right form .submit{
+    width: 60%;
+    height:5rem;
+    color: #86eddf;
+    background-image: linear-gradient(120deg,#86eddf 10%,#e625ff 100%);
+    font-size: 1.4rem;
+    border: none;
+    border-radius: 0.5rem;
+    margin: 6rem 0 0 50%;
+    transform: translateX(-50%);
+}
+.right form .submit:hover{
+    background-image: linear-gradient(-120deg,#e625ff 10%,#86eddf 100%);
+    box-shadow: 0 0 1rem -0.5rem rgb(0 0 0 / 50%);
+}
