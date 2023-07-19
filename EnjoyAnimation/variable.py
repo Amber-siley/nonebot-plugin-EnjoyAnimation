@@ -28,8 +28,6 @@ dirver=get_driver()             #驱动器
 config=dirver.config            #配置信息
 log_level=config.log_level      #日志等级
 
-
-
 #logging
 enjoy_log=logging.getLogger("EnjoyAnimation")                   #日志输出
 enjoy_log.setLevel(log_level)
