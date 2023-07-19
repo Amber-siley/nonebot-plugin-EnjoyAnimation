@@ -75,10 +75,7 @@ class login_qb:
             login=self.session.post(url=self.__login_url,data=login_data)
         else:
             login=self.session.get(url=self.__root_url)
-        if login.ok:
-            self.user_setting=json.loads(self.session.get(url=self.__get_setting_url).text)
-            # self.rss_infor=json.loads(self.session.get(url=self.__get_rss_infor_url).text)
-        else:
+        if not login.ok:
             raise ConnectionError("qb链接错误")
         self.__add_torrent_setting={
             "autoTMM": self.user_setting["auto_tmm_enabled"],
@@ -91,6 +88,10 @@ class login_qb:
             "dlLimit": float('nan'),
             "upLimit": float('nan')
         }
+    @property
+    def user_setting(self):
+        '''用户设置'''
+        return json.loads(self.session.get(url=self.__get_setting_url).text)
     
     def set_default_download_path(self,path:str):
         '''设置默认保存路径\\
