@@ -52,7 +52,7 @@ def user():
             return re_data
         
 def web_run():
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0",port=5555)
     
 timetable.add_job()(web_run)
 enjoy_log.info(f"Web UI {__name__} start")

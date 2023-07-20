@@ -5,6 +5,7 @@ from nonebot.log import LoguruHandler
 header={
         "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.0.0"
     }
+
 #dirs_path
 work_path=os.path.join(os.getcwd(),"data")                              #指向data路径
 date_files=os.path.join(work_path,"Animation_date")                     #数据文件夹路径
@@ -22,6 +23,9 @@ os.makedirs(work_path,exist_ok=True)
 os.makedirs(animation_pic_path,exist_ok=True)
 os.makedirs(video_path,exist_ok=True)
 os.makedirs(plugin_file_path,exist_ok=True)
+
+#db
+month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度对应的时间表
 
 #nonebot
 dirver=get_driver()             #驱动器

@@ -9,6 +9,7 @@ from .classes import *
 from .schedule_lite import *
 from .variable import (
     dirver,
+    month,
     header,
     animation_path,
     animation_pic_path,
@@ -84,7 +85,6 @@ def testfor_lastweek(timestr:str)->bool:
     
 async def yuc_wiki_infors(animation_db:db_lite):
     '''yuc_wiki网站的信息爬取整合''' 
-    month=["01","01","01","04","04","04","07","07","07","10","10","10"]
     now=datetime.now()
     yuc_url=f"https://yuc.wiki/{now.year}{month[now.month-1]}/"
     yuc_text=requests.get(url=yuc_url,headers=header,timeout=10).text

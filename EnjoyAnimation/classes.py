@@ -73,7 +73,7 @@ class db_lite:
                                 video_path text,
                                 start_date date,
                                 JP_start_date_UTC8 date,
-                                CN_start_date,
+                                CN_start_date date,
                                 status,
                                 qb_uid,
                                 official_url text
