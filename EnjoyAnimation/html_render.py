@@ -19,3 +19,9 @@ async def text_to_img(text: str):
         box =await  ele.bounding_box()
         await page.screenshot(path=path.join(animation_pic_path,"text_pic.jpg"), clip=box,full_page=True)
         await browser.close()
+
+def text_align(text:str,type:str="center"):
+    '''文字排版
+    - type：center(居中)'''
+    if type=="center":
+        return f'<p style="text-align: center;">{text}\n</p>'

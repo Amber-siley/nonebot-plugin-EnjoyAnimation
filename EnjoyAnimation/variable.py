@@ -1,4 +1,5 @@
 import os,logging
+from random import choice
 from nonebot import get_driver
 from nonebot.log import LoguruHandler
 
@@ -6,10 +7,34 @@ header={
         "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.0.0"
     }
 
+class ani_configs:
+    '''本插件的配置信息'''
+    def __init__(self) -> None:
+        self.default={
+            "re_type_img":True,
+            "need_to_you":True
+            }
+        self.re_type_img=self.get_config("re_type_img")
+        '''返回消息类型是否为图片'''
+        self.need_to_you=self.get_config("need_to_you")
+        '''是否需要在群聊中@，以回复指令触发者的消息'''
+
+    def get_config(self,attr:str):
+        try:
+            re=getattr(config,attr)
+        except AttributeError:
+            re=self.default[attr]
+        return re
+
+def random_list(list:list):
+    '''在一个列表随机选取一个元素'''
+    return choice(list)
+
 #dirs_path
 work_path=os.path.join(os.getcwd(),"data")                              #指向data路径
 date_files=os.path.join(work_path,"Animation_date")                     #数据文件夹路径
 animation_pic_path=os.path.join(date_files,"Animation_pic")             #指向pic路径
+text_img_path=os.path.join(animation_pic_path,"text_pic.jpg")           #文转图路径
 video_path=os.path.join(date_files,"Animation_video")                   #指向vidoe路径
 plugin_file_path=os.path.join(work_path,"Animation_admin")              #插件数据文件路径
 
@@ -30,7 +55,11 @@ month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度�
 #nonebot
 dirver=get_driver()             #驱动器
 config=dirver.config            #配置信息
-log_level=config.log_level      #日志等级
+log_level=config.log_level      #日志等级 
+ani_config=ani_configs()        #配置设置
+
+#杂项
+yes_list=["Yes sir","All set","It's a wrap","Check","Yet","Affirmative","You got it","Absolutely","Right away","On the dot"]
 
 #logging
 enjoy_log=logging.getLogger("EnjoyAnimation")                   #日志输出

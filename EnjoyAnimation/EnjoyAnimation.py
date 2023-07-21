@@ -3,17 +3,21 @@ from bs4 import BeautifulSoup   #bs4
 from datetime import datetime,timedelta
 from lxml import html,etree #lxml
 
+from nonebot.matcher import Matcher
+from nonebot.adapters.onebot.v11 import MessageSegment,MessageEvent
 from .QBsimpleAPI import *
 from .schedule_lite import timetable
 from .classes import *
 from .schedule_lite import *
+from .html_render import *
 from .variable import (
-    dirver,
+    text_img_path,
     month,
     header,
     animation_path,
     animation_pic_path,
-    enjoy_log
+    enjoy_log,
+    ani_config
 )
 
 @timetable.add_job("fixed","1w0h5m30s",233,True)
@@ -113,3 +117,25 @@ async def yuc_wiki_infors(animation_db:db_lite):
             urls=urls,
             start_date=time_a
         )
+        
+async def return_message(message:str,Matcher:Matcher,event:MessageEvent):
+    '''在qq上返回消息，读取配置分别返回消息（图片或者str）'''
+    await text_to_img(message)
+    if event.sub_type=="friend":
+        if ani_config.re_type_img==True:
+            await Matcher.send(MessageSegment.image(file=f"file:///{text_img_path}"))
+        else:
+            await Matcher.send(message)
+    elif event.sub_type=="normal":
+        if ani_config.re_type_img==True:
+            if ani_config.need_to_you==True:
+                await Matcher.send(MessageSegment.reply(event.message_id)+MessageSegment.image(file=f"file:///{text_img_path}"))
+            else:
+                await Matcher.send(MessageSegment.image(file=f"file:///{text_img_path}"))
+        else:
+            if ani_config.need_to_you==True:
+                await Matcher.send(MessageSegment.reply(event.message_id)+MessageSegment.text(message))
+            else:
+                await Matcher.send(message)
+    else:
+        enjoy_log.debug(f"other person message{event.message_id}=={event.user_id}:{event.message}")

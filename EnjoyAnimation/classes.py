@@ -22,7 +22,7 @@ class json_files:
         w=open(self.__json_path,"w",encoding="utf-8")
         json.dump(data,w,indent=4,ensure_ascii=False)
         w.close()
-        
+    
 class isotime_format:
     '''时间字符格式转换'''
     def __init__(self,time_str:str) -> None:
