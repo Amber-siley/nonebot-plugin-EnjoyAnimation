@@ -73,19 +73,6 @@ async def get_animation_infors():
     enjoy_log.info("Animation database bgmlist Completes")
     await yuc_wiki_infors(animation_db)
     enjoy_log.info("Animation database yuc_wike Completes")
-
-def testfor_lastweek(timestr:str)->bool:
-    '''检测时间是否来自不属于本周'''
-    time_datetime=datetime.strptime(timestr,"%Y-%m-%d %H:%M:%S")
-    now=datetime.now()
-    now_week=now.weekday()
-    if now_week==0:
-        now_week=8
-    week_1=now-timedelta(days=now_week)
-    if time_datetime.strftime("%Y-%m-%d %H:%M:%S") < week_1.strftime("%Y-%m-%d %H:%M:%S"):
-        return True
-    else:
-        return False
     
 async def yuc_wiki_infors(animation_db:db_lite):
     '''yuc_wiki网站的信息爬取整合''' 

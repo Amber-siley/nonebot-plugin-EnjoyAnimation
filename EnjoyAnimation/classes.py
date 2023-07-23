@@ -52,6 +52,37 @@ class isotime_format:
     def datetim_str(self):
         return str(self.time_datetime)
     
+class dlite:
+    '''datetime_lite简单的时间类以及字符串管理'''
+    def __init__(self,time:datetime | str=None) -> None:
+        if isinstance(time,datetime):
+            self.date_time=time
+            self.str=self.d_to_str(self.date_time)
+        elif time==None:
+            ...
+        elif isinstance(time,str):
+            self.str=time
+            self.date_time=self.str_to_d(time)
+        if time:
+            self.week:int=self.date_time.weekday()
+    
+    @staticmethod
+    def d_to_str(date_time:datetime) -> str:
+        '''时间类转%Y-%m-%d %H:%M:%S格式   字符串'''
+        return date_time.strftime("%Y-%m-%d %H:%M:%S")
+    @staticmethod
+    def str_to_d(str_time:str) -> datetime:
+        '''%Y-%m-%d %H:%M:%S格式字符串转   时间类'''
+        return datetime.strptime(str_time,"%Y-%m-%d %H:%M:%S")
+    
+    def testfor_lastweek()->str:
+        '''返回本周一的时间字符串'''
+        now=datetime.now()
+        now_week=now.weekday()
+        week_1=now-timedelta(days=now_week)
+        week_1=week_1.replace(hour=0,minute=0,second=0)
+        return week_1.strftime("%Y-%m-%d %H:%M:%S")
+        
 class db_lite:
     '''动漫数据库管道'''
     def commit(func):
@@ -293,6 +324,7 @@ class db_lite:
             sql_text+=f"like '{like}'"
         try:
             self.cursor.execute(sql_text)
+            # enjoy_log.debug(f"执行的语句为:\n{sql_text}")
         except sqlite3.OperationalError:
             enjoy_log.error(f"{sql_text}语法错误")
         sql_re=self.cursor.fetchall()

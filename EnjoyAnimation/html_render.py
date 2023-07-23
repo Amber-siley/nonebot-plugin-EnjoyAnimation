@@ -13,7 +13,7 @@ async def text_to_img(text: str):
         browser =await p.chromium.launch()
         context =await browser.new_context(viewport=p.devices['iPhone 12']['viewport'], user_agent=p.devices['iPhone 12']['user_agent'])
         page =await context.new_page()
-        content =f'<div id="capture">' + text + '</div>'
+        content =f'<div id="capture" style="padding: 10px;">' + text + '</div>'
         await page.set_content(content)
         ele =await page.query_selector("#capture")
         box =await  ele.bounding_box()
