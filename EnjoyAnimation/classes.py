@@ -106,7 +106,6 @@ class db_lite:
                                 JP_start_date_UTC8 date,
                                 CN_start_date date,
                                 status,
-                                qb_uid,
                                 official_url text
                             ) 
                             ''')
@@ -121,6 +120,13 @@ class db_lite:
                             create table if not exists names(
                                 name text not null primary key,
                                 relation integer,
+                                foreign key (relation) references animations(id)
+                            )
+                            ''')
+        self.cursor.execute('''
+                            create table if not exists qbits(
+                                qb_uid text not null primary key,
+                                relation intger,
                                 foreign key (relation) references animations(id)
                             )
                             ''')
