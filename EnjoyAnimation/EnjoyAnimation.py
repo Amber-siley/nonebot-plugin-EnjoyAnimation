@@ -6,7 +6,6 @@ from lxml import html,etree #lxml
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import MessageSegment,MessageEvent
 from .QBsimpleAPI import *
-from .schedule_lite import timetable
 from .classes import *
 from .schedule_lite import *
 from .html_render import *
@@ -110,19 +109,25 @@ async def return_message(message:str,Matcher:Matcher,event:MessageEvent):
     await text_to_img(message)
     if event.sub_type=="friend":
         if ani_config.re_type_img==True:
+            '''好友消息，图片'''
             await Matcher.send(MessageSegment.image(file=f"file:///{text_img_path}"))
         else:
+            '''好友消息，文字'''
             await Matcher.send(message)
     elif event.sub_type=="normal":
         if ani_config.re_type_img==True:
             if ani_config.need_to_you==True:
+                '''群消息，回复，图片'''
                 await Matcher.send(MessageSegment.reply(event.message_id)+MessageSegment.image(file=f"file:///{text_img_path}"))
             else:
+                '''群消息，不回复，图片'''
                 await Matcher.send(MessageSegment.image(file=f"file:///{text_img_path}"))
         else:
             if ani_config.need_to_you==True:
+                ''''群消息，回复，文字'''
                 await Matcher.send(MessageSegment.reply(event.message_id)+MessageSegment.text(message))
             else:
+                '''群消息，不回复，文字'''
                 await Matcher.send(message)
     else:
         enjoy_log.debug(f"other person message{event.message_id}=={event.user_id}:{event.message}")

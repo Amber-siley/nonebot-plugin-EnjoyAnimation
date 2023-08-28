@@ -17,7 +17,7 @@ class ani_configs:
         self.re_type_img=self.get_config("re_type_img")
         '''返回消息类型是否为图片'''
         self.need_to_you=self.get_config("need_to_you")
-        '''是否需要在群聊中@，以回复指令触发者的消息'''
+        '''是否需要在群聊中回复指令触发者的消息'''
 
     def get_config(self,attr:str):
         try:

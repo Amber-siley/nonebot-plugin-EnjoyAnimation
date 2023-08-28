@@ -1,15 +1,15 @@
 import re
+
 from .EnjoyAnimation import *
 from .index import *
-from nonebot.permission import SUPERUSER
-from .html_render import *
 from .variable import (
     month,
     animation_path,
-    ani_config,
     yes_list,
     random_list
 )
+
+from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import (
     MessageEvent,
     Message
@@ -64,10 +64,10 @@ async def today_update_func(event:MessageEvent):
 
 @animation_inqurie.handle()
 async def animation_inqurie_func(event:MessageEvent,args:Message=CommandArg()):
-    '''番剧查询，名字或者id查询'''
+    '''番剧查询，名字或者id查询，触发具体番剧后update番剧的description，无图片的会尝试爬取图片'''
     if other:=args.extract_plain_text():
         if anime_id_list:=animation_db.universal_select_db("names","relation","name",f"%{other}%"):
             if all(i == anime_id_list[0] for i in anime_id_list):
                 anime_name=animation_db.universal_select_db("names","name",f"relation={anime_id_list[0]}")[0]
-                anime_infor=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={anime_id_list[0]}")
-                
+                if anime_infor:=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={anime_id_list[0]}")[0]:
+                    ...

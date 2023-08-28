@@ -205,3 +205,4 @@ class schedule_lite:
                 raise IndexError(f"无task_id为{i}的任务")
         self.job_list=[i for i in self.job_list if i.task_id not in task_id]
 timetable=schedule_lite()
+'''提供一个任务管理类的实例，使用时主要是函数'''
