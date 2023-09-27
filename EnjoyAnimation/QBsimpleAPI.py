@@ -1,3 +1,4 @@
+#简易的qbittorrent的api接口
 import json,requests,os,re
 from datetime import datetime as dt
 from lxml import html
@@ -45,6 +46,22 @@ class rss_item:
         return ret
         
 class login_qb:
+    default_ruleDef={"addPaused":None,#添加后不开始下载None,True,False
+                     "affectedFeeds":[],#rss_url(list[str])
+                     "assignedCategory":"",#指定类别(str)
+                     "enabled":False,#是否启用该下载器(bool)
+                     "episodeFilter":"",#剧集过滤器(str)
+                     "ignoreDays":0,#忽略指定时间后的匹配项 (0 = 禁用)
+                     "lastMatch":"",#上一次结果
+                     "mustContain":"",#正则表达式必须包含(str)
+                     "mustNotContain":"",#正则表达式不必包含(str)
+                     "previouslyMatchedEpisodes":[],
+                     "savePath":"",#保存路径(str)
+                     "smartFilter":False,#是否启用剧集过滤器(bool)
+                     "torrentContentLayout":None,#torrent内容布局None,Original,Subfolder,NoSubfolder==全局，原始，创建子文件夹，不创建子文件夹
+                     "useRegex":False,#是否使用正则表达式(bool)
+                     }
+
     def __init__(self,port:int,login_user:str=None,login_passwd:str=None) -> None:
         '''
         - port：qb web ui 端口
@@ -148,13 +165,29 @@ class login_qb:
         if not status:
             raise IndexError("项目已存在")
     
+    def get_rss_dl_rule(self) -> dict:
+        '''获取rss下载器信息'''
+        rules=json.loads(self.session.get(url=self.__get_rss_dl_rule).text)
+        return rules
+    
+    def _set_rss_dl_rule(self,enabled:bool=False,
+                         addpaused:bool=None,
+                         save_path:str=''
+                         )-> dict:
+        '''返回rss下解器规则文件'''
+        re_ruledef=self.default_ruleDef
+        re_ruledef["enabled"]=enabled
+        re_ruledef["addPaused"]=addpaused
+        re_ruledef["savePath"]=save_path
+        return re_ruledef
+        
     def add_rss_dl_rule(self,rulename:str,ruledef:dict={}):
         '''添加rss下载器'''
         self.session.post(url=self.__add_rss_download_rule,data={"ruleName":rulename,"ruleDef":ruledef})
         
     @property
     def rss_infor(self)->list[rss_item]:
-        '''rss订阅信息'''
+        '''rss订阅信息,返回rss_item类对象的列表'''
         infors:dict=json.loads(self.session.get(url=self.__get_rss_infor_url).text)
         re=[]
         for i in infors:

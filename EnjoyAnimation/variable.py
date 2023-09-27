@@ -2,6 +2,7 @@ import os,logging
 from random import choice
 from nonebot import get_driver
 from nonebot.log import LoguruHandler
+from .QBsimpleAPI import login_qb
 
 header={
         "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.0.0"
@@ -12,12 +13,17 @@ class ani_configs:
     def __init__(self) -> None:
         self.default={
             "re_type_img":True,
-            "need_to_you":True
+            "need_to_you":True,
+            "qbit_port":8080
             }
         self.re_type_img=self.get_config("re_type_img")
         '''返回消息类型是否为图片'''
         self.need_to_you=self.get_config("need_to_you")
         '''是否需要在群聊中回复指令触发者的消息'''
+        self.qbit_port=self.get_config("qbit_port")
+        '''qbit端口'''
+        
+        
 
     def get_config(self,attr:str):
         try:
@@ -52,11 +58,13 @@ os.makedirs(plugin_file_path,exist_ok=True)
 #db
 month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度对应的时间表
 
+#qbit-qpi
+
+
 #nonebot
 dirver=get_driver()             #驱动器
 config=dirver.config            #配置信息
 log_level=config.log_level      #日志等级 
-ani_config=ani_configs()        #配置设置
 
 #杂项
 yes_list=["Yes sir","All set","It's a wrap","Check","Yet","Affirmative","You got it","Absolutely","Right away","On the dot"]
@@ -70,3 +78,6 @@ formation=logging.Formatter("%(asctime)s %(levelname)s: %(message)s",)          
 fg.setFormatter(formation)
 enjoy_log.addHandler(LoguruHandler())
 enjoy_log.addHandler(fg)
+
+#nonebot
+ani_config=ani_configs()        #配置设置

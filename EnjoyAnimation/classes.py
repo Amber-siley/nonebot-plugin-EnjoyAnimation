@@ -101,7 +101,6 @@ class db_lite:
                             create table if not exists animations(
                                 id integer primary key,
                                 pic_path text,
-                                video_path text,
                                 start_date date,
                                 JP_start_date_UTC8 date,
                                 CN_start_date date,
@@ -172,7 +171,6 @@ class db_lite:
     def insert_animation_info_db(self,
                                  names:list[str],
                                  pic_path:str,
-                                 video_path:str=None,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
@@ -218,7 +216,6 @@ class db_lite:
         if really:
             tmp_data={
                 "pic_path":pic_path,
-                "video_path":video_path,
                 "start_date":start_date,
                 "JP_start_date_UTC8":JP_start_date_UTC8,
                 "CN_start_date":CN_start_date,
@@ -265,7 +262,6 @@ class db_lite:
     def update_animation_info_db(self,
                                  names:list,
                                  pic_path:str,
-                                 video_path:str=None,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
@@ -275,7 +271,6 @@ class db_lite:
         '''更新animations数据'''
         tmp_data={
             "pic_path":pic_path,
-            "video_path":video_path,
             "start_date":start_date,
             "JP_start_date_UTC8":JP_start_date_UTC8,
             "CN_start_date":CN_start_date,
@@ -370,3 +365,5 @@ class db_lite:
         '''关闭数据库'''
         self.cursor.close()
         self.conn.close()
+
+    

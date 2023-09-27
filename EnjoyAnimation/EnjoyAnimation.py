@@ -61,7 +61,6 @@ async def get_animation_infors():
         animation_db.testafter_insert_db(
             names=names,
             pic_path=None,
-            video_path=None,
             start_date=start_date,
             JP_start_date_UTC8=JP_start_date_UTC8,
             CN_start_date=CN_start_date,
@@ -131,3 +130,4 @@ async def return_message(message:str,Matcher:Matcher,event:MessageEvent):
                 await Matcher.send(message)
     else:
         enjoy_log.debug(f"other person message{event.message_id}=={event.user_id}:{event.message}")
+
