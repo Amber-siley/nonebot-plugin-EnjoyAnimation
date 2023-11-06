@@ -4,10 +4,10 @@
     <title>Enjoy Login</title>
     <meta charset="UTF-8">
     <meta name="auther" content="Slexce">
-    <!-- <link rel="stylesheet" type="text/css" href="./static/index.css"> -->
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='index.css')}}">
-    <!-- <script src="./static/index.js"></script> -->
-    <script src="{{url_for('static',filename='index.js')}}"></script>
+    <link rel="stylesheet" type="text/css" href="./static/index.css">
+    <!-- <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='index.css')}}"> -->
+    <script src="./static/index.js"></script>
+    <!-- <script src="{{url_for('static',filename='index.js')}}"></script> -->
 </head>
 <body>
     <div class="box">
@@ -16,8 +16,18 @@
             <h4>登录</h4>
             <form id="loginForm" name="loginForm">
                 <input class="acc" type="text" id="username" name="username" placeholder="账号">
-                <input class="acc" type="password" id="password" name="password" placeholder="密码">
+                <input class="acc" type="password" id="password" name="password" placeholder="密码" autocomplete="on">
                 <input class="submit" type="submit" value="Login" onclick="login(event)">
+                <input class="rm" id="rm" type="checkbox">
+                <label class="rm_txt" for="rm">记住账号密码</label>
+                <input class="new_user" type="button" name="new_user" value="注册新账号" onclick="add_new_user()">
+                <script>
+                    var local_username=localStorage.getItem("username")
+                    var local_password=localStorage.getItem("password")
+                    if (local_password != null && local_username != null){
+                        write_pw(local_username,local_password)
+                    }
+                </script>
             </form>
         </div>
     </div>

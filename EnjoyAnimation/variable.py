@@ -14,7 +14,10 @@ class ani_configs:
         self.default={
             "re_type_img":True,
             "need_to_you":True,
-            "qbit_port":8080
+            "qbit_port":8080,
+            "admin_user":"admin",
+            "admin_pw":"123456",
+            "web_token_length":20
             }
         self.re_type_img=self.get_config("re_type_img")
         '''返回消息类型是否为图片'''
@@ -22,9 +25,13 @@ class ani_configs:
         '''是否需要在群聊中回复指令触发者的消息'''
         self.qbit_port=self.get_config("qbit_port")
         '''qbit端口'''
+        self.admin=self.get_config("admin_user")
+        '''web管理员账号'''
+        self.admin_pw=self.get_config("admin_pw")
+        '''web管理员密码'''
+        self.web_token_length=self.get_config("web_token_length")
+        '''web token长度'''
         
-        
-
     def get_config(self,attr:str):
         try:
             re=getattr(config,attr)
@@ -35,6 +42,14 @@ class ani_configs:
 def random_list(list:list):
     '''在一个列表随机选取一个元素'''
     return choice(list)
+
+def random_str(length:int):
+    '''随机生成length长度的字符串'''
+    data_str="ABCDEFGHIGKLMNOPQRSTUVWXYZabcdefghigklmnopqrstuvwxyz0123456789,.;:[]!@#$%^&*-+="
+    re_str=""
+    for i in range(0,length):
+        re_str+=random_list(data_str)
+    return re_str
 
 #dirs_path
 work_path=os.path.join(os.getcwd(),"data")                              #指向data路径

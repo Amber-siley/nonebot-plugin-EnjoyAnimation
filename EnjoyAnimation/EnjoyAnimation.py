@@ -130,4 +130,3 @@ async def return_message(message:str,Matcher:Matcher,event:MessageEvent):
                 await Matcher.send(message)
     else:
         enjoy_log.debug(f"other person message{event.message_id}=={event.user_id}:{event.message}")
-

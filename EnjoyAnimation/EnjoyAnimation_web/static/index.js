@@ -28,6 +28,7 @@ function login(event)
                         eval(result["tmps"]);
                     }
                     else{
+                        rember_pw(username,password)
                         token=result["tmps"];
                         localStorage.setItem("token",token);
                         fetch("/User",{
@@ -35,18 +36,39 @@ function login(event)
                             headers:{"Content-Type":'application/json'},
                             body:JSON.stringify(
                                 {
+                                    "username":username,
+                                    "password":password,
                                     "token":token
                                 }   
                             )
                         })
-                            .then(Response => Response.json())
-                            .then(res => {
-                                if (res["status"]=="success"){
-                                    eval(res["tmps"])
-                                }
-                            })
+                        window.location.href='/User?username='+username+'&password='+password
                     }
                 })
                 .catch(Error => console.log(Error));
         }
     }
+
+function add_new_user(){
+    //跳转到注册用户页面
+    alert("跳转新页面");
+}
+
+function rember_pw(username,password){
+    //记住账号与密码
+    var rm=document.getElementById("rm");
+    var bool_rm=rm.checked;
+    if (bool_rm){
+        localStorage.setItem("username",username);
+        localStorage.setItem("password",password);
+    }
+}
+
+function write_pw(username,password){
+    //自动输入账号与密码
+    var username_ele=document.getElementById("username");
+    var password_ele=document.getElementById("password");
+    username_ele.defaultValue=username;
+    password_ele.defaultValue=password;
+}
+// function 

@@ -4,7 +4,8 @@ from urllib.parse import unquote
 from typing import List
 from .variable import (
     header,
-    enjoy_log
+    enjoy_log,
+    ani_config
 )
 
 class json_files:
@@ -84,7 +85,7 @@ class dlite:
         return week_1.strftime("%Y-%m-%d %H:%M:%S")
         
 class db_lite:
-    '''动漫数据库管道'''
+    '''动漫数据库管理'''
     def commit(func):
         '''数据修改后，向数据库提交修改的装饰器'''
         def commit_1(self,*args, **kwargs):
@@ -95,7 +96,7 @@ class db_lite:
     @commit
     def __init__(self,db_path) -> None:
         self.__db_path=db_path
-        self.conn=sqlite3.connect(self.__db_path)
+        self.conn=sqlite3.connect(self.__db_path,check_same_thread=False)
         self.cursor=self.conn.cursor()
         self.cursor.execute('''
                             create table if not exists animations(
@@ -129,6 +130,14 @@ class db_lite:
                                 foreign key (relation) references animations(id)
                             )
                             ''')
+        self.cursor.execute('''
+                            create table if not exists enjoy_users(
+                                username text not null primary key,
+                                password text not null,
+                                token text,
+                                token_update date
+                            )
+                            ''')
 
     def test_name_db(self,names:list | str) -> bool:
         '''检测动漫信息是否存在数据库中'''
@@ -139,11 +148,12 @@ class db_lite:
         for i in names:
             if i in tmp_list:
                 back=True
+                # enjoy_log.debug(f"动漫{names}存在于{i}")
                 break
         return back
     
     @commit
-    def __universal_insert_db(self,table:str,**kwargs):
+    def universal_insert_db(self,table:str,**kwargs):
         '''通用插入数据库
             
             Kwargs：
@@ -222,14 +232,14 @@ class db_lite:
                 "status":status,
                 "official_url":official
             }
-            self.__universal_insert_db('animations',**tmp_data)
+            self.universal_insert_db('animations',**tmp_data)
             for i in names:
                 if i not in self.universal_select_db("names","name",f'name="{i}"'):
                     tmp_data={
                         "name":i,
                         "relation":"run(select max(id) from animations)"
                     }
-                    self.__universal_insert_db('names',**tmp_data)
+                    self.universal_insert_db('names',**tmp_data)
                     enjoy_log.debug(f"{i} 未找到别称 已添加进数据库")
             for i in urls:
                 if i not in self.universal_select_db("urls","url",f'url="{i}"'):
@@ -237,7 +247,7 @@ class db_lite:
                         "url":i,
                         "relation":"run(select max(id) from animations)"
                     }
-                    self.__universal_insert_db('urls',**tmp_data)
+                    self.universal_insert_db('urls',**tmp_data)
         else:
             for i in names:
                 if i not in self.universal_select_db("names","name",f'name="{i}"'):
@@ -245,22 +255,22 @@ class db_lite:
                         "name":i,
                         "relation":num
                     }
-                    self.__universal_insert_db("names",**tmp_data)
+                    self.universal_insert_db("names",**tmp_data)
             for i in urls:
                 if i not in self.universal_select_db("urls","url",f'url="{i}"'):
                     tmp_data={
                         "url":i,
                         "relation":num
                     }
-                    self.__universal_insert_db('urls',**tmp_data)
+                    self.universal_insert_db('urls',**tmp_data)
             tmp_data={
                 "pic_path":pic_path
             }
-            self.__universal_update_db("animations",f"id={num}",None,**tmp_data)
+            self.universal_update_db("animations",f"id={num}",None,**tmp_data)
     
     @commit
     def update_animation_info_db(self,
-                                 names:list,
+                                 names:list[str],
                                  pic_path:str,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
@@ -277,9 +287,29 @@ class db_lite:
             "status":status,
             "official_url":official
         }
-        tmp_name=f"\"{names[0]}\""
-        index=self.universal_select_db("names","relation",f"name={tmp_name}")[0]
-        self.__universal_update_db("animations",f"id={index}",**tmp_data)
+        # tmp_name=f"\"{names[0]}\""
+        # #有些存在于db中的元素导致更新该行数据，但又有一些不属于name数据
+        # name_list=self.universal_select_db("names","relation",f"name={tmp_name}")
+        # enjoy_log.debug(f"查询{tmp_name}后更新,name_list为{name_list}")
+        # index=name_list[0]
+        # self.universal_update_db("animations",f"id={index}",**tmp_data)
+        def return_namelist_id(name_list):
+            '''返回数据库中该项需要更新的编号 不存在的项将添加'''
+            tmp_list=self.universal_select_db(table="names",attribute="name")
+            for i in name_list:
+                if i in tmp_list:
+                    index=self.universal_select_db(table="names",attribute="relation",where=f'''name="{i}"''')[0]
+                    break
+            if index:
+                for i in name_list:
+                    if i not in tmp_list:
+                        # enjoy_log.debug(f"{i}不存在")
+                        tmp_name_at_id={"name":i,"relation":index}
+                        self.universal_insert_db(table="names",**tmp_name_at_id)
+                return index
+            return False
+        self.universal_update_db("animations",f"id={return_namelist_id(names)}",**tmp_data)
+            
     
     @commit 
     def reset_table(self,table):
@@ -311,7 +341,7 @@ class db_lite:
                 sql_text=re.sub(rule,i,sql_text,count=1)
         return sql_text
     
-    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None)->list[tuple] | list:
+    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None)->list:
         '''通用查询
         - table：表
         - attribute：返回属性可以是聚合函数，比如run(sum(id))
@@ -339,7 +369,7 @@ class db_lite:
         return sql_re
     
     @commit
-    def __universal_update_db(self,table:str,where:str=None,like:str=None,**kwargs):
+    def universal_update_db(self,table:str,where:str=None,like:str=None,**kwargs):
         '''通用更新
         - table：表
         - where：条件
@@ -360,10 +390,8 @@ class db_lite:
             self.cursor.execute(sql_text)
         except sqlite3.OperationalError:
             enjoy_log.error(f"{sql_text}语法错误")
-        
+    
     def close_db(self):
         '''关闭数据库'''
         self.cursor.close()
         self.conn.close()
-
-    

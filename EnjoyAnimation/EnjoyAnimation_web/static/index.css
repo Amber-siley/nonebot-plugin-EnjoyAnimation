@@ -84,6 +84,31 @@ html::before{
     color: rgb(102, 112, 251);
     background-color: rgba(0,0,0,0);
 }
+.box .right form .rm_txt{
+    content: none;
+    user-select: none;
+    width: 70%;
+    font-size: 1.2rem;
+    border: none;
+    margin: 4rem 0 4rem 0.5rem;
+    padding-bottom: 2px;
+    align-items: center;
+    color: rgb(188,42,251);
+}
+
+.box .right form .new_user{
+    font-size: 1.2rem;
+    border: none;
+    margin: 4rem 0 4rem 0rem;
+    padding-bottom: 2px;
+    align-items: center;
+    color: rgb(188,42,251);
+    background-color: rgba(0, 0, 0, 0);
+}
+.box .right input:-webkit-autofill{
+    -webkit-text-fill-color: #925afc;
+    transition: background-color 50000s ease-in-out 0s;
+}
 .right form .acc:focus{
     outline: none;
     color:#925afc;
