@@ -118,7 +118,8 @@ class db_lite:
                             ''')
         self.cursor.execute('''
                             create table if not exists names(
-                                name text not null primary key,
+                                row_id integer primary key,
+                                name text not null,
                                 relation integer,
                                 foreign key (relation) references animations(id)
                             )
@@ -126,7 +127,7 @@ class db_lite:
         self.cursor.execute('''
                             create table if not exists qbits(
                                 qb_uid text not null primary key,
-                                relation intger,
+                                relation integer,
                                 foreign key (relation) references animations(id)
                             )
                             ''')
@@ -135,7 +136,18 @@ class db_lite:
                                 username text not null primary key,
                                 password text not null,
                                 token text,
-                                token_update date
+                                token_update date,
+                                qq_id integer,
+                                foreign key (qq_id) references user_subscriptions(qq_id)
+                            )
+                            ''')
+        self.cursor.execute('''
+                            create table if not exists user_subscriptions(
+                                qq_id integer not null,
+                                anime_relation integer not null,
+                                web_username text,
+                                foreign key (anime_relation) references animations(id),
+                                foreign key (web_username) references enjoy_users(username)
                             )
                             ''')
 
@@ -157,12 +169,12 @@ class db_lite:
         '''通用插入数据库
             
             Kwargs：
-                key 表示表中的列，
+            -    key 表示表中的列，
                 
-                value 表示insert into values()中的值，可以是sql语句“run(sql语句)”
+            -    value 表示insert into values()中的值，可以是sql语句“run(sql语句)”
                 
-            例：在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"status":status,"official_url":official}
-                插入sql语句’names‘,{"name":item,"relation":"run(select max(id) from animations)"}'''
+            >>> 在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"status":status,"official_url":official}
+            >>> 插入sql语句’names‘,{"name":item,"relation":"run(select max(id) from animations)"}'''
         attrbute=str(tuple(kwargs.keys()))
         value=str(tuple(i if i is not None else 'NULL' for i in list(kwargs.values()))).replace("'NULL'","NULL")
         sql_text=f'''
@@ -266,7 +278,8 @@ class db_lite:
             tmp_data={
                 "pic_path":pic_path
             }
-            self.universal_update_db("animations",f"id={num}",None,**tmp_data)
+            if pic_path != None:
+                self.universal_update_db("animations",f"id={num}",None,**tmp_data)
     
     @commit
     def update_animation_info_db(self,
@@ -287,12 +300,7 @@ class db_lite:
             "status":status,
             "official_url":official
         }
-        # tmp_name=f"\"{names[0]}\""
-        # #有些存在于db中的元素导致更新该行数据，但又有一些不属于name数据
-        # name_list=self.universal_select_db("names","relation",f"name={tmp_name}")
-        # enjoy_log.debug(f"查询{tmp_name}后更新,name_list为{name_list}")
-        # index=name_list[0]
-        # self.universal_update_db("animations",f"id={index}",**tmp_data)
+
         def return_namelist_id(name_list):
             '''返回数据库中该项需要更新的编号 不存在的项将添加'''
             tmp_list=self.universal_select_db(table="names",attribute="name")
@@ -341,18 +349,22 @@ class db_lite:
                 sql_text=re.sub(rule,i,sql_text,count=1)
         return sql_text
     
-    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None)->list:
+    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None,order:str=None,by:str="asc")->list:
         '''通用查询
         - table：表
         - attribute：返回属性可以是聚合函数，比如run(sum(id))
         - where：条件
-        - like：近似值'''
+        - like：近似值
+        - order：按哪一列排序
+        - by：ASC（升序），DESC（降序）'''
         if isinstance(attribute,tuple):
             attribute=str(attribute)[1:-1].replace("'","")
         attribute=self.__run_command(r'run\((.*?\))\)',attribute)
         sql_text=f'''select {attribute} from {table} where {where} '''
         if like:
             sql_text+=f"like '{like}'"
+        if order:
+            sql_text+=f'''order by {order} {by}'''
         try:
             self.cursor.execute(sql_text)
             # enjoy_log.debug(f"执行的语句为:\n{sql_text}")
@@ -365,7 +377,9 @@ class db_lite:
                 lock=False
                 break
         if lock:
-            sql_re=[i for tup in sql_re for i in tup]
+            seen=set()
+            sql_re=[i for tup in sql_re for i in tup if i not in seen and not seen.add(i)]
+        #sql_re=list(set(sql_re)) 虽然很方便但会改变顺序
         return sql_re
     
     @commit

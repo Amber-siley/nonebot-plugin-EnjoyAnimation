@@ -2,6 +2,12 @@
 import json,requests,os,re
 from datetime import datetime as dt
 from lxml import html
+from .variable import (
+    ani_config,
+    enjoy_log
+)
+from urllib.parse import quote,unquote
+
 class Byte_to_speed:
     def __init__(self,byte:int) -> None:
         self.byte=byte
@@ -70,7 +76,7 @@ class login_qb:
         - login_user：登录用户名
         - login_passwd：登录密码
         '''
-        login_data={
+        self.login_data={
             "username":login_user,
             "password":login_passwd
         }
@@ -88,12 +94,6 @@ class login_qb:
         self.__add_rss_download_rule=f"{self.__root_url}/api/v2/rss/setRule"
         self.__get_rss_dl_rule=f"{self.__root_url}/api/v2/rss/rules"
         self.session=requests.session()
-        if login_user and login_passwd:
-            login=self.session.post(url=self.__login_url,data=login_data)
-        else:
-            login=self.session.get(url=self.__root_url)
-        if not login.ok:
-            raise ConnectionError("qb链接错误")
         self.__add_torrent_setting={
             "autoTMM": self.user_setting["auto_tmm_enabled"],
             "savepath": self.user_setting["save_path"],
@@ -105,11 +105,35 @@ class login_qb:
             "dlLimit": float('nan'),
             "upLimit": float('nan')
         }
+    
     @property
+    def ok(self):
+        '''链接状态'''
+        if self.login_data["login_user"] and self.login_data["login_passwd"]:
+            login=self.session.post(url=self.__login_url,data=self.login_data)
+        else:
+            login=self.session.get(url=self.__root_url)
+        if not login.ok:
+            # raise ConnectionError("qb链接错误")
+            return False
+        return True
+    
+    def check(func):
+        '''装饰器，检测是否能链接qbittorrent后再决定执行'''
+        def _(self,*args, **kwargs):
+            if self.ok:
+                func(self,*args, **kwargs)
+            else:
+                enjoy_log.error(f"执行方法{func.__name__}时，qbit未链接")
+        return _
+
+    @property
+    @check
     def user_setting(self):
         '''用户设置'''
         return json.loads(self.session.get(url=self.__get_setting_url).text)
     
+    @check
     def set_default_download_path(self,path:str):
         '''设置默认保存路径\\
         path:保存文件路径'''
@@ -118,7 +142,8 @@ class login_qb:
             self.session.post(url=self.__set_setting_url,data={"json":json.dumps(self.user_setting)})
         else:
             raise ValueError("路径错误")
-        
+    
+    @check
     def add_download_torrent(self,pa_url:str,save_path:str=None,cookie:dict={},proxy:str=None):
         '''添加bt种子文件
         - path：种子文件路径 或者 torrent网址
@@ -142,34 +167,51 @@ class login_qb:
         else:
             raise ValueError("路径，网址，或者代理有问题")
             
-        
+    @check
     def _get_download_infor(self) -> dict:
         '''获取下载信息'''
         return json.loads(self.session.get(url=self.__get_download_infor_url).text)
     
+    @check
     def get_download_speed(self) -> Byte_to_speed:
         '''获取下载速度\\
         返回一个类对象'''
         tmp=self._get_download_infor()["server_state"]["dl_info_speed"]
         return Byte_to_speed(tmp)
     
+    @check
     def get_download_project(self):
         '''获取下载项目的信息hash值'''
         tmp:dict=self._get_download_infor()["torrents"]
         tmp_keys=list(tmp.keys)
         return tmp_keys
     
-    def add_rss(self,rss_url:str,r_path:str=""):
-        '''添加rss订阅'''
+    @check
+    def add_rss(self,rss_url:str,r_path:str="") ->bool:
+        '''添加rss订阅，返回是否成功的布尔值
+        - rss_url：rss网址，中文要使用url编码
+        - r_path：忘了有什么用，不用设置'''
         status=self.session.post(url=self.__add_rss_url,data={"url":rss_url,"path":r_path}).ok
         if not status:
-            raise IndexError("项目已存在")
+            #raise IndexError("项目已存在")
+            return False
+        return True
     
+    @check
+    def cn_add_rss(self,url_tplt:str,cn_str:str,r_path:str=""):
+        '''含有中文路径的添加rss订阅
+        - url_tplt：rss网址模板，https://www.example.com/.xml?item={xxx}，{xxx}会被替换成tmp_str中的字符
+        - cn_str：需要替换的字符
+        - r_path：忘了有什么用，不用设置'''
+        self.add_rss(rss_url=self._chinese_url_replace_encoding(url_tplt,cn_str),r_path=r_path)
+
+    @check
     def get_rss_dl_rule(self) -> dict:
         '''获取rss下载器信息'''
         rules=json.loads(self.session.get(url=self.__get_rss_dl_rule).text)
         return rules
     
+    @check
     def _set_rss_dl_rule(self,enabled:bool=False,
                          addpaused:bool=None,
                          save_path:str=''
@@ -180,12 +222,14 @@ class login_qb:
         re_ruledef["addPaused"]=addpaused
         re_ruledef["savePath"]=save_path
         return re_ruledef
-        
+    
+    @check
     def add_rss_dl_rule(self,rulename:str,ruledef:dict={}):
         '''添加rss下载器'''
         self.session.post(url=self.__add_rss_download_rule,data={"ruleName":rulename,"ruleDef":ruledef})
         
     @property
+    @check
     def rss_infor(self)->list[rss_item]:
         '''rss订阅信息,返回rss_item类对象的列表'''
         infors:dict=json.loads(self.session.get(url=self.__get_rss_infor_url).text)
@@ -194,18 +238,32 @@ class login_qb:
             re.append(rss_item(i,infors[i]))
         return re
     
+    @check
     def refres_rss(self):
         '''刷新rss订阅'''
         for i in self.rss_infor:
             self.session.post(url=self.__refres_rss_url,data={"itemPath":i.name})
-       
+    
+    @check
     def rename_rss(self,item:str,dest:str):
         '''将rss订阅item改名为dest'''
         status=self.session.post(url=self.__rename_rss_url,data={"itemPath":item,"destPath":dest}).ok
         if not status:
             raise IndexError(f"不存在名为{item}的rss对象")
-             
+       
     def _test_json(self,json_str:dict or list):
         '''将json文本保存至文件'''
         with open(f"{dt.now().day}.json","w",encoding="utf-8") as w:
             json.dump(json_str,w,indent=4,ensure_ascii=False)
+
+    def _chinese_url_replace_encoding(self,url:str,tmp_str:str="") ->str:
+        '''将中文编码转url进行拼接
+        - url：https://www.example.com/.xml?item={xxx}，{xxx}会被替换成tmp_str中的字符
+        - tmp_str：需要进行替换的字符串，将会使用url进行编码'''
+        re_rule="\{x{3}\}"
+        return(re.sub(re_rule,quote(tmp_str),url,1))
+        
+class bt_dl_lite:
+    '''torrent文件下载及其管理 未完成'''
+    def __init__(self) -> None:
+        self.urls=ani_config.bt_dl_url

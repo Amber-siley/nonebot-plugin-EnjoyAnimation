@@ -80,15 +80,12 @@ def login_index():
         return re_data
     return render_template("login.html")
 
+@app.route('/new_user',methods=['GET'])
+def new_user():
+    return render_template('new_user.html')
+    
 @app.route('/User',methods=["POST","GET"])
 def user():
-    # if request.method=="POST":
-    #     data=request.get_json()
-    #     username=data["username"]
-    #     password=data["password"]
-    #     token=data["token"]
-    #     if find_user(username,password):
-    #         return redirect(url_for())
     if request.method=="GET":
         username=request.args.get("username")
         password=request.args.get("password")
@@ -99,6 +96,6 @@ def user():
 def web_run():
     admin_manage()
     app.run(host="0.0.0.0",port=5555)
-
-timetable.add_job()(web_run)
-enjoy_log.info(f"Web UI {__name__} start")
+if ani_config.web_ui:
+    timetable.add_job()(web_run)
+    enjoy_log.info(f"Web UI {__name__} start")

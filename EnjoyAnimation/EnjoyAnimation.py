@@ -4,8 +4,7 @@ from datetime import datetime,timedelta
 from lxml import html,etree #lxml
 
 from nonebot.matcher import Matcher
-from nonebot.adapters.onebot.v11 import MessageSegment,MessageEvent
-from .QBsimpleAPI import *
+from nonebot.adapters.onebot.v11 import MessageSegment,MessageEvent,Message
 from .classes import *
 from .schedule_lite import *
 from .html_render import *
@@ -19,12 +18,13 @@ from .variable import (
     ani_config
 )
 
+animation_db=db_lite(animation_path)
+
 @timetable.add_job("fixed","1w0h5m30s",233,True)
 async def get_animation_infors():
     '''通过bgm api获取动漫信息并放入数据库'''
     onair="https://bgmlist.com/api/v1/bangumi/onair"
     site="https://bgmlist.com/api/v1/bangumi/site"
-    animation_db=db_lite(animation_path)
     onair_json=json.loads(requests.get(url=onair,headers=header,timeout=10).text)["items"]
     site_json=json.loads(requests.get(url=site,headers=header,timeout=10).text)
     enjoy_log.info("Animation database Updating......")
@@ -103,30 +103,45 @@ async def yuc_wiki_infors(animation_db:db_lite):
             start_date=time_a
         )
         
-async def return_message(message:str,Matcher:Matcher,event:MessageEvent):
+async def return_message(message:str,event:MessageEvent) ->str | MessageSegment:
     '''在qq上返回消息，读取配置分别返回消息（图片或者str）'''
     await text_to_img(message)
     if event.sub_type=="friend":
         if ani_config.re_type_img==True:
             '''好友消息，图片'''
-            await Matcher.send(MessageSegment.image(file=f"file:///{text_img_path}"))
+            return Message(MessageSegment.image(file=f"file:///{text_img_path}"))
         else:
             '''好友消息，文字'''
-            await Matcher.send(message)
+            return (message)
     elif event.sub_type=="normal":
         if ani_config.re_type_img==True:
             if ani_config.need_to_you==True:
                 '''群消息，回复，图片'''
-                await Matcher.send(MessageSegment.reply(event.message_id)+MessageSegment.image(file=f"file:///{text_img_path}"))
+                return Message(MessageSegment.reply(event.message_id)+MessageSegment.image(file=f"file:///{text_img_path}"))
             else:
                 '''群消息，不回复，图片'''
-                await Matcher.send(MessageSegment.image(file=f"file:///{text_img_path}"))
+                return Message(MessageSegment.image(file=f"file:///{text_img_path}"))
         else:
             if ani_config.need_to_you==True:
                 ''''群消息，回复，文字'''
-                await Matcher.send(MessageSegment.reply(event.message_id)+MessageSegment.text(message))
+                return Message(MessageSegment.reply(event.message_id)+MessageSegment.text(message))
             else:
                 '''群消息，不回复，文字'''
-                await Matcher.send(message)
+                return Message(message)
     else:
         enjoy_log.debug(f"other person message{event.message_id}=={event.user_id}:{event.message}")
+        
+def find_animation_id(tmp_str:str)->list[int]:
+    '''寻找番剧id列表'''
+    anime_id_list=animation_db.universal_select_db("names","relation","name",f"%{tmp_str}%")
+    if anime_id_list:
+        return anime_id_list
+    return False
+
+def insert_qq_anime(qq_id:int,anime_id:int):
+    '''在数据库中插入订阅信息''' 
+    tmp_data={
+        "qq_id":qq_id,
+        "anime_relation":anime_id
+    }
+    animation_db.universal_insert_db(table="user_subscriptions",**tmp_data)
