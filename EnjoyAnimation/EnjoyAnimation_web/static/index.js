@@ -51,7 +51,7 @@ function login(event)
 
 function add_new_user(){
     //跳转到注册用户页面
-    alert("跳转新页面");
+    window.location.href="/new_user"
 }
 
 function rember_pw(username,password){
