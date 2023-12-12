@@ -103,7 +103,7 @@ async def yuc_wiki_infors(animation_db:db_lite):
             start_date=time_a
         )
         
-async def return_message(message:str,event:MessageEvent) ->str | MessageSegment:
+async def return_message(message:str,event:MessageEvent) ->str | Message:
     '''在qq上返回消息，读取配置分别返回消息（图片或者str）'''
     await text_to_img(message)
     if event.sub_type=="friend":
@@ -144,4 +144,5 @@ def insert_qq_anime(qq_id:int,anime_id:int):
         "qq_id":qq_id,
         "anime_relation":anime_id
     }
-    animation_db.universal_insert_db(table="user_subscriptions",**tmp_data)
+    if not animation_db.universal_select_db("user_subscriptions","qq_id",f"qq_id={qq_id} and anime_relation={anime_id}"):
+        animation_db.universal_insert_db(table="user_subscriptions",**tmp_data)
