@@ -5,6 +5,7 @@ from .variable import (
     month,
     animation_path,
     yes_list,
+    video_path,
     random_list
 )
 
@@ -21,12 +22,12 @@ from nonebot import (
 from nonebot.params import CommandArg,ArgPlainText
 
 animation_db=db_lite(animation_path)
+qbit=login_qb(ani_config.qbit_port,ani_config.qbit_admin,ani_config.qbit_pw)
 animation_info=on_command(cmd="本季番剧",aliases={"番剧信息"})
 animation_update=on_command(cmd="番剧更新",aliases={'更新番剧'},permission=SUPERUSER)
 today_update=on_command(cmd="今日更新")
 animation_inqurie=on_command("番剧查询",aliases={"查询番剧"})
 subscribe_animation=on_command(cmd="订阅番剧")
-
 
 @animation_info.handle()
 async def animation_info_func(event:MessageEvent):
@@ -81,9 +82,16 @@ async def subscribe_animation_func(event:MessageEvent,state:T_State,args:Message
         re_msg=""
         if anime_id_tmp:
             if len(anime_id_tmp)==1:
+                anime_name=animation_db.universal_select_db("names","name",f"relation={anime_id_tmp[0]}")[0]
                 insert_qq_anime(qq_id=event.user_id,anime_id=anime_id_tmp[0])
-                ...
-                await subscribe_animation.finish()
+                anime_work_path=os.path.join(video_path,anime_name)
+                os.makedirs(anime_work_path,exist_ok=True)
+                if not qbit.cn_add_rss(ani_config.dl_url[0],anime_name):
+                    ...#懒，未连接qbit时会添加到tmp.json中，暂时放置
+                re_msg=f"动漫 {anime_name} 已添加进追番列表"
+                if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
+                    re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
+                await subscribe_animation.finish(re_msg)
             else:
                 for item_index,id in enumerate(anime_id_tmp):
                     anime_name=animation_db.universal_select_db("names","name",f"relation={id}")[0]
