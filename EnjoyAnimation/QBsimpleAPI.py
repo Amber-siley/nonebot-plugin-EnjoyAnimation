@@ -94,7 +94,13 @@ class login_qb:
         self.__add_rss_download_rule=f"{self.__root_url}/api/v2/rss/setRule"
         self.__get_rss_dl_rule=f"{self.__root_url}/api/v2/rss/rules"
         self.session=requests.session()
-        self.__add_torrent_setting={
+        self.__session=self.session
+        if not self.ok:
+            enjoy_log.error("qbittorrent未连接")
+    
+    @property
+    def __add_torrent_setting(self):
+        return {
             "autoTMM": self.user_setting["auto_tmm_enabled"],
             "savepath": self.user_setting["save_path"],
             "rename": "",
@@ -109,10 +115,13 @@ class login_qb:
     @property
     def ok(self):
         '''链接状态'''
-        if self.login_data["login_user"] and self.login_data["login_passwd"]:
-            login=self.session.post(url=self.__login_url,data=self.login_data)
-        else:
-            login=self.session.get(url=self.__root_url)
+        try:
+            if self.login_data["username"] and self.login_data["password"]:
+                login=self.__session.post(url=self.__login_url,data=self.login_data)
+            else:
+                login=self.__session.get(url=self.__root_url)
+        except:
+            return False
         if not login.ok:
             # raise ConnectionError("qb链接错误")
             return False
@@ -123,8 +132,10 @@ class login_qb:
         def _(self,*args, **kwargs):
             if self.ok:
                 func(self,*args, **kwargs)
+                return True
             else:
                 enjoy_log.error(f"执行方法{func.__name__}时，qbit未链接")
+                return False
         return _
 
     @property
@@ -196,14 +207,13 @@ class login_qb:
             #raise IndexError("项目已存在")
             return False
         return True
-    
-    @check
+
     def cn_add_rss(self,url_tplt:str,cn_str:str,r_path:str=""):
         '''含有中文路径的添加rss订阅
         - url_tplt：rss网址模板，https://www.example.com/.xml?item={xxx}，{xxx}会被替换成tmp_str中的字符
         - cn_str：需要替换的字符
         - r_path：忘了有什么用，不用设置'''
-        self.add_rss(rss_url=self._chinese_url_replace_encoding(url_tplt,cn_str),r_path=r_path)
+        return self.add_rss(rss_url=self._chinese_url_replace_encoding(url_tplt,cn_str),r_path=r_path)
 
     @check
     def get_rss_dl_rule(self) -> dict:
