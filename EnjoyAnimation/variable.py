@@ -5,14 +5,16 @@ from nonebot.log import LoguruHandler
 header={
         "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.0.0"
     }
-
+    
 class ani_configs:
     '''本插件的配置信息'''
     def __init__(self) -> None:
         self.default={
             "re_type_img":True,
             "need_to_you":True,
-            "qbit_port":8080,
+            "qbit_port":8070,
+            "qbit_admin":None,
+            "qbit_pw":None,
             "proxy":None,
             "web_ui":False,
             "admin_user":"admin",
@@ -29,6 +31,10 @@ class ani_configs:
         '''是否需要在群聊中回复指令触发者的消息'''
         self.qbit_port=self.get_config("qbit_port")
         '''qbit端口'''
+        self.qbit_admin=self.get_config("qbit_admin")
+        '''qbit web账号'''
+        self.qbit_pw=self.get_config("qbit_pw")
+        '''qbit web密码'''
         self.web_ui=self.get_config("web_ui")
         '''web ui是否开启'''
         self.admin=self.get_config("admin_user")
@@ -59,6 +65,13 @@ class ani_configs:
             self.bt_dl_url["https://acg.rip/.xml?term={xxx}"]={"proxy":self.proxy,"cookie_path":None}
         if self.kisssub_enable:
             self.bt_dl_url["http://www.kisssub.org/rss-{xxx}.xml"]={"proxy":None,"cookie_path":self.kisssub_cookie_path}
+        if self.acgrip_enable and self.kisssub_enable:
+            enjoy_log.info("暂时不支持使用多个bt站点，默认选择用户设置的第一个站点")
+    
+    @property
+    def dl_url(self)->list:
+        '''bt配置中的url'''
+        return list(self.bt_dl_url.keys())
         
     def get_config(self,attr:str):
         try:
