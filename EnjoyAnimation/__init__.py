@@ -6,7 +6,11 @@ from .variable import (
     animation_path,
     yes_list,
     video_path,
-    random_list
+    random_list,
+    anime_user_help_txt,
+    anime_admin_help_txt,
+    config,
+    datetime_week
 )
 
 from nonebot.permission import SUPERUSER
@@ -27,7 +31,9 @@ animation_info=on_command(cmd="本季番剧",aliases={"番剧信息"})
 animation_update=on_command(cmd="番剧更新",aliases={'更新番剧'},permission=SUPERUSER)
 today_update=on_command(cmd="今日更新")
 animation_inqurie=on_command("番剧查询",aliases={"查询番剧"})
-subscribe_animation=on_command(cmd="订阅番剧")
+subscribe_animation=on_command(cmd="订阅番剧",aliases={"番剧订阅"})
+anime_help=on_command(cmd="番剧帮助")
+sreach_anime_configs=on_command(cmd="debug番剧配置项")
 
 @animation_info.handle()
 async def animation_info_func(event:MessageEvent):
@@ -58,7 +64,7 @@ async def today_update_func(event:MessageEvent):
     for i,id in enumerate(anime_id_list):
         anime_name=animation_db.universal_select_db("names","name",f"relation={id}")[0]
         re_message+=f"{i+1}，{anime_name}\n"
-    re_message="今日更新\n"+re_message
+    re_message=f"今日更新:【{datetime_week[datetime.now().weekday()]}】\n"+re_message
     await today_update.finish(await return_message(re_message,event))
 
 @animation_inqurie.handle()
@@ -71,7 +77,11 @@ async def animation_inqurie_func(event:MessageEvent,args:Message=CommandArg()):
                 target_id=anime_id_list[0]
                 anime_name=animation_db.universal_select_db("names","name",f"relation={target_id}")[0]
                 if anime_infor:=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={target_id}")[0]:
-                    ...
+                    pic_path,start_date=anime_infor[0],anime_infor[1]
+                    start_date=dlite(start_date).cn_date()
+                    re_msg=MessageSegment.image(file=f"file:///{pic_path}")
+                    await animation_inqurie.finish(message=Message(await return_message(None,event)+f"{anime_name} 于{start_date} 首播\n"+re_msg))
+                    
                     
 
 @subscribe_animation.handle()
@@ -86,8 +96,8 @@ async def subscribe_animation_func(event:MessageEvent,state:T_State,args:Message
                 insert_qq_anime(qq_id=event.user_id,anime_id=anime_id_tmp[0])
                 anime_work_path=os.path.join(video_path,anime_name)
                 os.makedirs(anime_work_path,exist_ok=True)
-                if not qbit.cn_add_rss(ani_config.dl_url[0],anime_name):
-                    ...#懒，未连接qbit时会添加到tmp.json中，暂时放置
+                qbit.cn_add_rss(ani_config.dl_url[0],anime_name)
+                #未连接qbit时会添加到tmp.json中，暂时放置
                 re_msg=f"动漫 {anime_name} 已添加进追番列表"
                 if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
                     re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
@@ -102,10 +112,18 @@ async def subscribe_animation_func(event:MessageEvent,state:T_State,args:Message
 
 @subscribe_animation.got(key="number")
 async def subscribe_animation_chooice_func(event:MessageEvent,state:T_State,args:str=ArgPlainText("number")):
-    '''番剧订阅 选择'''
+    '''番剧订阅_选择'''
     if args.isdigit():
         if other:=int(args):
             if int(other)<=len(state["anime_id_list"]):
                 insert_qq_anime(qq_id=event.user_id,anime_id=state["anime_id_list"][int(other)-1])
                 ...
             await subscribe_animation.finish()
+
+@anime_help.handle()
+async def anime_help_func(event:MessageEvent):
+    '''番剧帮助'''
+    if str(event.user_id) in config.superusers:
+        await anime_help.finish(await return_message(anime_admin_help_txt,event))
+    else:
+        await anime_help.finish(await return_message(anime_user_help_txt,event))
