@@ -11,7 +11,8 @@ class ani_configs:
     def __init__(self) -> None:
         self.default={
             "re_type_img":True,
-            "need_to_you":True,
+            "need_to":True,
+            "need_at":True,
             "qbit_port":8070,
             "qbit_admin":None,
             "qbit_pw":None,
@@ -27,10 +28,12 @@ class ani_configs:
             }
         self.re_type_img=self.get_config("re_type_img")
         '''返回消息类型是否为图片'''
-        self.need_to_you=self.get_config("need_to_you")
+        self.need_to=self.get_config("need_to")
         '''是否需要在群聊中回复指令触发者的消息'''
+        self.need_at=self.get_config("need_at")
+        '''是否需要在群聊中@用户回复消息'''
         self.qbit_port=self.get_config("qbit_port")
-        '''qbit端口'''
+        '''qbit 端口'''
         self.qbit_admin=self.get_config("qbit_admin")
         '''qbit web账号'''
         self.qbit_pw=self.get_config("qbit_pw")
@@ -124,6 +127,20 @@ log_level=config.log_level      #日志等级
 
 #杂项
 yes_list=["Yes sir","All set","Check","Yet","Affirmative","You got it","Absolutely","Right away","On the dot"]
+anime_user_help_txt='''
+Commands：(必须参数)【可选参数】
+#番剧帮助：显示帮助
+#番剧信息：返回当前季度番剧列表
+#今日更新：返回今日更新番剧列表
+#番剧查询 【番剧名称】：返回番剧详细信息
+#番剧订阅 【番剧名称】：订阅番剧设置下载任务，自动提醒
+'''
+anime_admin_help_txt='''
+admin's Commands：
+#更新番剧：强制更新番剧信息的数据库
+'''
+anime_admin_help_txt=anime_user_help_txt+anime_admin_help_txt
+datetime_week={0:"周一",1:"周二",2:"周三",3:"周四",4:"周五",5:"周六",6:"周日"}
 
 #logging
 enjoy_log=logging.getLogger("EnjoyAnimation")                   #日志输出
