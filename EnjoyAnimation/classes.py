@@ -12,12 +12,14 @@ class json_files:
     '''json管道'''
     def __init__(self,json_path) -> None:
         self.__json_path=json_path
+        
     def read(self):
         '''读取json文件'''
         r=open(self.__json_path,"r",encoding="utf-8")
         re=json.load(r)
         r.close()
         return json.load(re)
+    
     def write(self,data):
         '''刷新写入json文件'''
         w=open(self.__json_path,"w",encoding="utf-8")
@@ -83,7 +85,22 @@ class dlite:
         week_1=now-timedelta(days=now_week)
         week_1=week_1.replace(hour=0,minute=0,second=0)
         return week_1.strftime("%Y-%m-%d %H:%M:%S")
+    
+    def cn_date(self,format:str="Y年M月d日")->str:
+        '''中文时间字符串，使用与schedule_lite相同格式的字符串
+        - Y：年
+        - M：月
+        - d：日
+        - h：时
+        - m：分
+        - s：秒
+        - w：周
         
+        use
+        >>> dlite(datetime).cn_date() -> 符合format格式的str'''
+        format=format.replace("Y","%Y").replace("M","%x").replace("d","%d").replace("h","%H").replace("m","%M").replace("s","%S").replace("w","%w").replace("%x","%m")
+        return self.date_time.strftime(format)
+    
 class db_lite:
     '''动漫数据库管理'''
     def commit(func):
