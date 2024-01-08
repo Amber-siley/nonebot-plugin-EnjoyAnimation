@@ -139,12 +139,10 @@ class login_qb:
         return _
 
     @property
-    @check
     def user_setting(self):
         '''用户设置'''
         return json.loads(self.session.get(url=self.__get_setting_url).text)
     
-    @check
     def set_default_download_path(self,path:str):
         '''设置默认保存路径\\
         path:保存文件路径'''
@@ -153,8 +151,7 @@ class login_qb:
             self.session.post(url=self.__set_setting_url,data={"json":json.dumps(self.user_setting)})
         else:
             raise ValueError("路径错误")
-    
-    @check
+
     def add_download_torrent(self,pa_url:str,save_path:str=None,cookie:dict={},proxy:str=None):
         '''添加bt种子文件
         - path：种子文件路径 或者 torrent网址
@@ -178,26 +175,22 @@ class login_qb:
         else:
             raise ValueError("路径，网址，或者代理有问题")
             
-    @check
     def _get_download_infor(self) -> dict:
         '''获取下载信息'''
         return json.loads(self.session.get(url=self.__get_download_infor_url).text)
     
-    @check
     def get_download_speed(self) -> Byte_to_speed:
         '''获取下载速度\\
         返回一个类对象'''
         tmp=self._get_download_infor()["server_state"]["dl_info_speed"]
         return Byte_to_speed(tmp)
     
-    @check
     def get_download_project(self):
         '''获取下载项目的信息hash值'''
         tmp:dict=self._get_download_infor()["torrents"]
         tmp_keys=list(tmp.keys)
         return tmp_keys
     
-    @check
     def add_rss(self,rss_url:str,r_path:str="") ->bool:
         '''添加rss订阅，返回是否成功的布尔值
         - rss_url：rss网址，中文要使用url编码
@@ -215,13 +208,11 @@ class login_qb:
         - r_path：忘了有什么用，不用设置'''
         return self.add_rss(rss_url=self._chinese_url_replace_encoding(url_tplt,cn_str),r_path=r_path)
 
-    @check
     def get_rss_dl_rule(self) -> dict:
         '''获取rss下载器信息'''
         rules=json.loads(self.session.get(url=self.__get_rss_dl_rule).text)
         return rules
     
-    @check
     def _set_rss_dl_rule(self,enabled:bool=False,
                          addpaused:bool=None,
                          save_path:str=''
@@ -233,13 +224,11 @@ class login_qb:
         re_ruledef["savePath"]=save_path
         return re_ruledef
     
-    @check
     def add_rss_dl_rule(self,rulename:str,ruledef:dict={}):
         '''添加rss下载器'''
         self.session.post(url=self.__add_rss_download_rule,data={"ruleName":rulename,"ruleDef":ruledef})
         
     @property
-    @check
     def rss_infor(self)->list[rss_item]:
         '''rss订阅信息,返回rss_item类对象的列表'''
         infors:dict=json.loads(self.session.get(url=self.__get_rss_infor_url).text)
@@ -248,13 +237,11 @@ class login_qb:
             re.append(rss_item(i,infors[i]))
         return re
     
-    @check
     def refres_rss(self):
         '''刷新rss订阅'''
         for i in self.rss_infor:
             self.session.post(url=self.__refres_rss_url,data={"itemPath":i.name})
     
-    @check
     def rename_rss(self,item:str,dest:str):
         '''将rss订阅item改名为dest'''
         status=self.session.post(url=self.__rename_rss_url,data={"itemPath":item,"destPath":dest}).ok
