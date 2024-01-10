@@ -102,6 +102,7 @@ animation_pic_path=os.path.join(date_files,"Animation_pic")             #指向p
 text_img_path=os.path.join(animation_pic_path,"text_pic.jpg")           #文转图路径
 video_path=os.path.join(date_files,"Animation_video")                   #指向vidoe路径
 plugin_file_path=os.path.join(work_path,"Animation_admin")              #插件数据文件路径
+debug_path=os.path.join(plugin_file_path,"debug")                       #开发测试的debug目录
 
 #files_path
 animation_path=os.path.join(plugin_file_path,"animation.db")            #指向animation.db文件路径
@@ -113,6 +114,7 @@ os.makedirs(work_path,exist_ok=True)
 os.makedirs(animation_pic_path,exist_ok=True)
 os.makedirs(video_path,exist_ok=True)
 os.makedirs(plugin_file_path,exist_ok=True)
+os.makedirs(debug_path,exist_ok=True)
 
 #db
 month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度对应的时间表

@@ -10,7 +10,7 @@ from .variable import (
 
 class json_files:
     '''json管道'''
-    def __init__(self,json_path) -> None:
+    def __init__(self,json_path:None) -> None:
         self.__json_path=json_path
         
     def read(self):
@@ -27,7 +27,7 @@ class json_files:
         w.close()
     
 class isotime_format:
-    '''时间字符格式转换'''
+    '''UTC时间字符格式转换'''
     def __init__(self,time_str:str) -> None:
         self.iso_time_str=time_str
         self.__time_str_list=self.iso_time_str.replace(".","!.").replace('/',"/!").split("!")

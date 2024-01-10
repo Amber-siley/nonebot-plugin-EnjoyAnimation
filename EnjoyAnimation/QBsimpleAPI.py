@@ -96,7 +96,7 @@ class login_qb:
         self.session=requests.session()
         self.__session=self.session
         if not self.ok:
-            enjoy_log.error("qbittorrent未连接")
+            enjoy_log.warning("qbittorrent未连接")
     
     @property
     def __add_torrent_setting(self):
