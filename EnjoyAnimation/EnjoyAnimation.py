@@ -123,7 +123,7 @@ async def yuc_wiki_infors(animation_db:db_lite):
         enjoy_log.error(f"Animation database yuc_wike error !!! \nURL：{yuc_url}")
         
 async def return_message(message:str,event:MessageEvent) ->str | Message:
-    '''在qq上返回消息，读取配置分别返回消息（图片或者str）'''
+    '''在qq上返回消息，读取配置分别返回消息（图片或者str）,返回消息段，需要使用send进行消息发送'''
     re_msg=None
     if ani_config.re_type_img and message:
         await text_to_img(message)

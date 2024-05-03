@@ -33,6 +33,7 @@ today_update=on_command(cmd="今日更新")
 animation_inqurie=on_command("番剧查询",aliases={"查询番剧"})
 subscribe_animation=on_command(cmd="订阅番剧",aliases={"番剧订阅"})
 anime_help=on_command(cmd="番剧帮助")
+select_sub_animes=on_command(cmd="我的追番")
 sreach_anime_configs=on_command(cmd="debug番剧配置项")
 
 @animation_info.handle()
@@ -127,3 +128,16 @@ async def anime_help_func(event:MessageEvent):
         await anime_help.finish(await return_message(anime_admin_help_txt,event))
     else:
         await anime_help.finish(await return_message(anime_user_help_txt,event))
+
+@select_sub_animes.handle()
+async def select_sub_anime_func(event:MessageEvent):
+    '''我的追番，获取用户订阅的番剧'''
+    id = event.user_id
+    re_msg = ""
+    sub_anime_ids = animation_db.universal_select_db("user_subscriptions","anime_relation",f"qq_id={id}")
+    for i,_id in enumerate(sub_anime_ids):
+        anime_name = animation_db.universal_select_db("names","name",f"relation={_id}")[0]
+        re_msg += f"{i+1}，{anime_name}\n"
+    re_msg = f"你的追番：\n{re_msg}"
+    await select_sub_animes.finish(await return_message(re_msg,event))
+    
