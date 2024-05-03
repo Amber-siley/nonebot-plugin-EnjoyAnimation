@@ -87,42 +87,65 @@ async def animation_inqurie_func(event:MessageEvent,args:Message=CommandArg()):
                     
 
 @subscribe_animation.handle()
-async def subscribe_animation_func(event:MessageEvent,state:T_State,args:Message=CommandArg()):
+async def subscribe_animation_func(match:Matcher,event:MessageEvent,stat:T_State,args:Message=CommandArg()):
     '''番剧订阅'''
+    stat["anime_id"] = None
     if other:=args.extract_plain_text():
-        anime_id_tmp=find_animation_id(other)
-        re_msg=""
-        if anime_id_tmp:
-            if len(anime_id_tmp)==1:
-                anime_name=animation_db.universal_select_db("names","name",f"relation={anime_id_tmp[0]}")[0]
-                insert_qq_anime(qq_id=event.user_id,anime_id=anime_id_tmp[0])
-                anime_work_path=os.path.join(video_path,anime_name)
-                os.makedirs(anime_work_path,exist_ok=True)
-                qbit.cn_add_rss(ani_config.dl_url[0],anime_name)
-                #未连接qbit时会添加到tmp.json中，暂时放置
-                re_msg=f"动漫 {anime_name} 已添加进追番列表"
-                if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
-                    re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
-                await subscribe_animation.finish(re_msg)
-            else:
-                for item_index,id in enumerate(anime_id_tmp):
-                    anime_name=animation_db.universal_select_db("names","name",f"relation={id}")[0]
-                    re_msg+=f"{item_index+1}，{anime_name}\n"
-                re_msg="检索内容似乎冲突了😊，请选择订阅编号：（输入非数字退出）\n"+re_msg
-                state["anime_id_list"]=anime_id_tmp
-                await subscribe_animation.send(await return_message(re_msg,event))
-
-@subscribe_animation.got(key="number")
-async def subscribe_animation_chooice_func(event:MessageEvent,state:T_State,args:str=ArgPlainText("number")):
+        tmp = [i.isdigit() for i in other.split(" ")]
+        if all(tmp):
+            match.set_arg("number",args)
+        else:
+            anime_id_tmp=find_animation_id(other)
+            re_msg=""
+            if anime_id_tmp:
+                if len(anime_id_tmp)==1:
+                    anime_name=animation_db.universal_select_db("names","name",f"relation={anime_id_tmp[0]}")[0]
+                    insert_qq_anime(qq_id=event.user_id,anime_id=anime_id_tmp[0])
+                    anime_work_path=os.path.join(video_path,anime_name)
+                    os.makedirs(anime_work_path,exist_ok=True)
+                    re_msg=f"动漫 {anime_name} 已添加进追番列表"
+                    if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
+                        re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
+                    await subscribe_animation.finish(re_msg)
+                else:
+                    for item_index,id in enumerate(anime_id_tmp):
+                        anime_name=animation_db.universal_select_db("names","name",f"relation={id}")[0]
+                        re_msg+=f"{item_index+1}，{anime_name}\n"
+                    re_msg="检索内容似乎冲突了😊，请选择订阅编号：（输入dd退出）\n"+re_msg
+                    await subscribe_animation.send(await return_message(re_msg,event))
+                    stat["anime_id"] = anime_id_tmp
+                    match.set_arg("number",None)
+        
+@subscribe_animation.got(key="number",prompt="请选择订阅编号")
+async def subscribe_animation_chooice_func(match:Matcher,event:MessageEvent,args:str=ArgPlainText("number")):
     '''番剧订阅_选择'''
-    if args.isdigit():
-        if other:=int(args):
-            if int(other)<=len(state["anime_id_list"]):
-                insert_qq_anime(qq_id=event.user_id,anime_id=state["anime_id_list"][int(other)-1])
-                ...
-            await subscribe_animation.finish()
+    if args == None:
+        match.set_arg("error_num",None)
+    if args == "dd":
+        await subscribe_animation.finish(random_list(yes_list))
+    id = event.user_id
+    nums = args.split(" ")
+    for i in nums:
+        if i.isdigit():
+            now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
+            '''当前季度最低时间'''
+            anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
+            if int(i) <= 0 or int(i) > len(anime_id_list):
+                await subscribe_animation.reject("请输入合法的番剧编号，请选择订阅编号，或者输入dd退出选择：")
+            insert_qq_anime(id,anime_id_list[int(i)-1])
+    await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
-
+@subscribe_animation.got(key="error_num")
+async def subscribe_animation_fix_error(event:MessageEvent,stat:T_State,args:str=ArgPlainText("error_num")):
+    '''处理多个数字'''
+    if args == None:
+        await subscribe_animation.reject()
+    nums = args.split(" ")
+    animes = stat["anime_id"]
+    id = event.user_id
+    for i in nums:
+        insert_qq_anime(id,animes[int(i)-1])
+    await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
 @anime_help.handle()
 async def anime_help_func(event:MessageEvent):
@@ -166,6 +189,7 @@ async def unsub_animes_got_func(event:MessageEvent,args:Message | str=ArgPlainTe
     animes_msg = await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(anime_names)]),event)
     if args in ["all","All"]:
         animation_db.universal_delete_db("user_subscriptions",f"qq_id={id}")
+        await unsub_animes.finish(f"{random_list(yes_list)} 已全部取消订阅😭")
     if args == "dd":
         await unsub_animes.finish(random_list(yes_list))
     else:
