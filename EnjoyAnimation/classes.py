@@ -426,3 +426,15 @@ class db_lite:
         '''关闭数据库'''
         self.cursor.close()
         self.conn.close()
+    
+    @commit
+    def universal_delete_db(self,table:str,where:str=None):
+        '''通用删除
+        table：表
+        where：条件
+        '''
+        sql_text = f'''
+        delete from {table}
+        where {where}
+        '''
+        self.cursor.execute(sql_text)

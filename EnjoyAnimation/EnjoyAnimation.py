@@ -150,7 +150,7 @@ async def return_message(message:str,event:MessageEvent) ->str | Message:
     return re_msg
         
 def find_animation_id(tmp_str:str)->list[int]:
-    '''寻找番剧id列表'''
+    '''使用缺省搜索寻找番剧id列表'''
     anime_id_list=animation_db.universal_select_db("names","relation","name",f"%{tmp_str}%")
     if anime_id_list:
         return anime_id_list
@@ -165,3 +165,29 @@ def insert_qq_anime(qq_id:int,anime_id:int):
     if not animation_db.universal_select_db("user_subscriptions","qq_id",f"qq_id={qq_id} and anime_relation={anime_id}"):
         animation_db.universal_insert_db(table="user_subscriptions",**tmp_data)
 
+def user_subanime(id) -> list[str]:
+    '''通过qqid获取订阅的番剧名称列表'''
+    re_data = []
+    sub_anime_ids = animation_db.universal_select_db("user_subscriptions","anime_relation",f"qq_id={id}")
+    for _id in sub_anime_ids:
+        anime_name = animation_db.universal_select_db("names","name",f"relation={_id}")[0]
+        re_data.append(anime_name)
+    return re_data
+
+def use_num_select_animeID(num:str) -> list[int]:
+    '''使用编号其中番剧id为当前季度的番剧id，无法通过id获取往期季度的番剧'''
+    num = num.split(" ")
+    anime_ids = set()
+    now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
+    '''当前季度最低时间'''
+    anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
+    for i in num:
+        if i.isdigit():
+            anime_ids.add(anime_id_list[int(i)-1])
+        else:
+            tmp = animation_db.universal_select_db("names","relation","name",f"%{i}%")
+            #查询数据库符合名称的id
+            if len(tmp) == 1:
+                #结果唯一
+                anime_ids.add(tmp[0])
+    return anime_ids

@@ -33,7 +33,8 @@ today_update=on_command(cmd="今日更新")
 animation_inqurie=on_command("番剧查询",aliases={"查询番剧"})
 subscribe_animation=on_command(cmd="订阅番剧",aliases={"番剧订阅"})
 anime_help=on_command(cmd="番剧帮助")
-select_sub_animes=on_command(cmd="我的追番")
+select_sub_animes=on_command(cmd="我的追番",aliases={"我的订阅"})
+unsub_animes = on_command(cmd="取消追番",aliases={"取消订阅"})
 sreach_anime_configs=on_command(cmd="debug番剧配置项")
 
 @animation_info.handle()
@@ -97,7 +98,7 @@ async def subscribe_animation_func(event:MessageEvent,state:T_State,args:Message
                 insert_qq_anime(qq_id=event.user_id,anime_id=anime_id_tmp[0])
                 anime_work_path=os.path.join(video_path,anime_name)
                 os.makedirs(anime_work_path,exist_ok=True)
-                qbit.cn_add_rss(ani_config.dl_url[0],anime_name)
+                # qbit.cn_add_rss(ani_config.dl_url[0],anime_name)
                 #未连接qbit时会添加到tmp.json中，暂时放置
                 re_msg=f"动漫 {anime_name} 已添加进追番列表"
                 if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
@@ -121,6 +122,8 @@ async def subscribe_animation_chooice_func(event:MessageEvent,state:T_State,args
                 ...
             await subscribe_animation.finish()
 
+
+
 @anime_help.handle()
 async def anime_help_func(event:MessageEvent):
     '''番剧帮助'''
@@ -133,11 +136,49 @@ async def anime_help_func(event:MessageEvent):
 async def select_sub_anime_func(event:MessageEvent):
     '''我的追番，获取用户订阅的番剧'''
     id = event.user_id
+    datas = user_subanime(id)
     re_msg = ""
-    sub_anime_ids = animation_db.universal_select_db("user_subscriptions","anime_relation",f"qq_id={id}")
-    for i,_id in enumerate(sub_anime_ids):
-        anime_name = animation_db.universal_select_db("names","name",f"relation={_id}")[0]
-        re_msg += f"{i+1}，{anime_name}\n"
-    re_msg = f"你的追番：\n{re_msg}"
-    await select_sub_animes.finish(await return_message(re_msg,event))
+    for index,data in enumerate(datas):
+        re_msg += f"{index+1}，{data}\n"
+    if msg := await return_message(re_msg,event):
+        await select_sub_animes.finish(Message("您的订阅番剧如下：\n"+msg))
+    await select_sub_animes.finish("您还没有没有订阅番剧哟🤔")
     
+@unsub_animes.handle()
+async def unsub_animes_func(match:Matcher,event:MessageEvent,args:Message=CommandArg()):
+    '''取消追番'''
+    if args.extract_plain_text():
+        match.set_arg(key="unsub_num",message=args)
+    id = event.user_id
+    anime_names = user_subanime(id)
+    if len(anime_names) == 0:
+        await unsub_animes.finish("您还没有没有订阅番剧哟😐")
+    await unsub_animes.send(await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event))
+    
+@unsub_animes.got(key="unsub_num",prompt="请选择番剧编号")
+async def unsub_animes_got_func(event:MessageEvent,args:Message | str=ArgPlainText("unsub_num")):
+    '''取消追番——选择'''
+    id = event.user_id
+    locked = True
+    num_error = False
+    excute_bit = False
+    anime_names = user_subanime(id)
+    animes_msg = await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(anime_names)]),event)
+    if args in ["all","All"]:
+        animation_db.universal_delete_db("user_subscriptions",f"qq_id={id}")
+    if args == "dd":
+        await unsub_animes.finish(random_list(yes_list))
+    else:
+        ids = args.split(" ")
+        sub_anime_ids = animation_db.universal_select_db("user_subscriptions","anime_relation",f"qq_id={id}")
+        for i in ids:
+            if i.isdigit():
+                try:
+                    animation_db.universal_delete_db("user_subscriptions",f"qq_id={id} and anime_relation={sub_anime_ids[int(i)-1]}")
+                    excute_bit = True
+                except IndexError:
+                    num_error = True
+                locked = False
+        if locked or num_error and not excute_bit:
+            await unsub_animes.reject("请输入合法数字编号哦😘，请重新输入，或者输入dd退出\n"+animes_msg)
+    await unsub_animes.send(Message("已取消订阅番剧，正在订阅的番剧如下\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
