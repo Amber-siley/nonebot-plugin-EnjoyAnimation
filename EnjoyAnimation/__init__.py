@@ -98,7 +98,7 @@ async def subscribe_animation_func(event:MessageEvent,state:T_State,args:Message
                 insert_qq_anime(qq_id=event.user_id,anime_id=anime_id_tmp[0])
                 anime_work_path=os.path.join(video_path,anime_name)
                 os.makedirs(anime_work_path,exist_ok=True)
-                # qbit.cn_add_rss(ani_config.dl_url[0],anime_name)
+                qbit.cn_add_rss(ani_config.dl_url[0],anime_name)
                 #未连接qbit时会添加到tmp.json中，暂时放置
                 re_msg=f"动漫 {anime_name} 已添加进追番列表"
                 if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:

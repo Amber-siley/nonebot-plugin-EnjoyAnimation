@@ -17,7 +17,7 @@ template=path.join(file,"EnjoyAnimation_web")
 static=path.join(template,"static")
 app = Flask(__name__,template_folder=template,static_folder=static)
 
-def find_user(username,password)-> list or False:
+def find_user(username,password)-> list | bool:
     '''查询用户'''
     return web_db.universal_select_db(table="enjoy_users",attribute=("username","password"),where=f'''username="{username}"and password="{password}"''')
 

@@ -147,7 +147,7 @@ async def return_message(message:str,event:MessageEvent) ->str | Message:
             re_msg+=MessageSegment.text(message)
     else:
         enjoy_log.debug(f"other person message{event.message_id}=={event.user_id}:{event.message}")
-    return re_msg
+    return re_msg if re_msg is not None else ""
         
 def find_animation_id(tmp_str:str)->list[int]:
     '''使用缺省搜索寻找番剧id列表'''

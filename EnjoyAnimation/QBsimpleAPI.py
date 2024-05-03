@@ -248,7 +248,7 @@ class login_qb:
         if not status:
             raise IndexError(f"不存在名为{item}的rss对象")
        
-    def _test_json(self,json_str:dict or list):
+    def _test_json(self,json_str:dict | list):
         '''将json文本保存至文件'''
         with open(f"{dt.now().day}.json","w",encoding="utf-8") as w:
             json.dump(json_str,w,indent=4,ensure_ascii=False)
