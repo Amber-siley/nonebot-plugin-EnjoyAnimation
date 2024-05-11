@@ -52,7 +52,7 @@ class rss_item:
         return ret
         
 class login_qb:
-    default_ruleDef={"addPaused":None,#添加后不开始下载None,True,False
+    _rss_default_ruleDef={"addPaused":None,#添加后不开始下载None,True,False
                      "affectedFeeds":[],#rss_url(list[str])
                      "assignedCategory":"",#指定类别(str)
                      "enabled":False,#是否启用该下载器(bool)
@@ -68,6 +68,22 @@ class login_qb:
                      "useRegex":False,#是否使用正则表达式(bool)
                      }
 
+    _rss_default_donlowd_ruleDef=_rss_default_ruleDef
+    _rss_default_donlowd_ruleDef["priority"] = 0
+    _rss_default_donlowd_ruleDef["torrentParams"] = {"category":"",
+                                                     "download_limit":-1,
+                                                     "download_path":"",
+                                                     "inactive_seeding_time_limit":-2,
+                                                     "operating_mode":"AutoManaged",
+                                                     "ratio_limit":-2,
+                                                     "save_path":"",
+                                                     "seeding_time_limit":-2,
+                                                     "skip_checking":False,
+                                                     "tags":[""],
+                                                     "upload_limit":-1,
+                                                     "use_auto_tmm":False,
+                                                     "stopped":False}
+    
     def __init__(self,port:int,login_user:str=None,login_passwd:str=None) -> None:
         '''
         - port：qb web ui 端口
@@ -93,6 +109,8 @@ class login_qb:
         self.__refres_rss_url=f"{self.__root_url}/api/v2/rss/refreshItem"
         self.__add_rss_download_rule=f"{self.__root_url}/api/v2/rss/setRule"
         self.__get_rss_dl_rule=f"{self.__root_url}/api/v2/rss/rules"
+        
+        self.__matching_artcles_url=f"{self.__root_url}/api/v2/rss/matchingArticles"
         self.session=requests.session()
         self.__session=self.session
         if not self.ok:
@@ -213,12 +231,12 @@ class login_qb:
         rules=json.loads(self.session.get(url=self.__get_rss_dl_rule).text)
         return rules
     
-    def _set_rss_dl_rule(self,enabled:bool=False,
+    def _rss_dl_rule(self,enabled:bool=False,
                          addpaused:bool=None,
                          save_path:str=''
                          )-> dict:
         '''返回rss下解器规则文件'''
-        re_ruledef=self.default_ruleDef
+        re_ruledef=self._rss_default_ruleDef
         re_ruledef["enabled"]=enabled
         re_ruledef["addPaused"]=addpaused
         re_ruledef["savePath"]=save_path
@@ -227,7 +245,22 @@ class login_qb:
     def add_rss_dl_rule(self,rulename:str,ruledef:dict={}):
         '''添加rss下载器'''
         self.session.post(url=self.__add_rss_download_rule,data={"ruleName":rulename,"ruleDef":ruledef})
-        
+    
+    def set_rss_dl_rule(self,rulename:str,addrule:list[str] | str,savepath:str):
+        '''设置rss下载器    吾日三试，奈何无果，遂放弃
+        - rulename：规则名称
+        - addrule：rss订阅链接列表
+        - savepath：下载保存路径'''
+        set_dr = self._rss_default_donlowd_ruleDef
+        if isinstance(addrule,str):
+            addrule = [addrule]
+        set_dr["affectedFeeds"] = addrule
+        set_dr["enabled"] = False
+        set_dr["torrentParams"]["save_path"] = savepath
+        data = {"ruleName":rulename,"ruleDef":set_dr}
+        self.session.post(url=self.__add_rss_download_rule,data=data)
+        self.session.get(url=self.__matching_artcles_url,params={"ruleName":rulename})
+    
     @property
     def rss_infor(self)->list[rss_item]:
         '''rss订阅信息,返回rss_item类对象的列表'''

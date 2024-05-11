@@ -2,10 +2,11 @@ import os,logging
 from random import choice
 from nonebot import get_driver
 from nonebot.log import LoguruHandler
+
 header={
         "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.0.0"
     }
-    
+
 class ani_configs:
     '''本插件的配置信息'''
     def __init__(self) -> None:
@@ -24,7 +25,8 @@ class ani_configs:
             "bt_dl_url":{},
             "acgrip_enable":False,
             "kisssub_enable":True,
-            "kisssub_cookie_path":None
+            "kisssub_cookie_path":None,
+            "debug_mode":False
             }
         self.re_type_img=self.get_config("re_type_img")
         '''返回消息类型是否为图片'''
@@ -62,6 +64,8 @@ class ani_configs:
         '''代理地址 没啥用，目前唯一作用给acgrip使用'''
         self.kisssub_cookie_path=self.get_config("kisssub_cookie_path")
         '''爱恋种子cookie文件路径，没啥用，看后续开发提高兼容性时可能会使用'''
+        self.debug_mode = self.get_config("debug_mode")
+        '''debug模式'''
         
         #bt_dl_url
         if self.acgrip_enable:
@@ -118,6 +122,7 @@ os.makedirs(debug_path,exist_ok=True)
 
 #db
 month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度对应的时间表
+animes_db_colnames = ['id', 'pic_path', 'start_date', 'JP_start_date_UTC8', 'CN_start_date', 'status', 'official_url',"description"] #animations列名
 
 #qbit-api
 

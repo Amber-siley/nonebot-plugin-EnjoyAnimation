@@ -1,11 +1,10 @@
 import json,sqlite3,re,difflib,requests
 from datetime import datetime,timedelta
-from urllib.parse import unquote
-from typing import List
+from typing import Literal
 from .variable import (
     header,
     enjoy_log,
-    ani_config
+    animes_db_colnames
 )
 
 class json_files:
@@ -111,6 +110,17 @@ class db_lite:
         return commit_1
     
     @commit
+    def __fix_self(self):
+        '''自捡，'''
+        anime_colnames = self.get_colname("animations")
+        for anime in animes_db_colnames:
+            #检查animations中的列名是否缺失
+            if anime not in anime_colnames:
+                #缺失列则添加
+                self.alter_table_db("animations","add",anime,"text")
+                enjoy_log.debug(f"在animations中缺失 {anime} 已添加")
+                
+    @commit
     def __init__(self,db_path) -> None:
         self.__db_path=db_path
         self.conn=sqlite3.connect(self.__db_path,check_same_thread=False)
@@ -123,7 +133,8 @@ class db_lite:
                                 JP_start_date_UTC8 date,
                                 CN_start_date date,
                                 status,
-                                official_url text
+                                official_url text,
+                                description text
                             ) 
                             ''')
         self.cursor.execute(''' 
@@ -167,6 +178,7 @@ class db_lite:
                                 foreign key (web_username) references enjoy_users(username)
                             )
                             ''')
+        self.__fix_self()
 
     def test_name_db(self,names:list | str) -> bool:
         '''检测动漫信息是否存在数据库中'''
@@ -366,7 +378,7 @@ class db_lite:
                 sql_text=re.sub(rule,i,sql_text,count=1)
         return sql_text
     
-    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None,order:str=None,by:str="asc")->list:
+    def universal_select_db(self,table:str,attribute:tuple | str,where:str="1=1",like:str=None,order:str=None,by:str="asc")->list[str]:
         '''通用查询
         - table：表
         - attribute：返回属性可以是聚合函数，比如run(sum(id))
@@ -387,6 +399,9 @@ class db_lite:
             # enjoy_log.debug(f"执行的语句为:\n{sql_text}")
         except sqlite3.OperationalError:
             enjoy_log.error(f"{sql_text}语法错误")
+        return self.__get_sql_redata()
+
+    def __get_sql_redata(self):
         sql_re=self.cursor.fetchall()
         lock=True
         for i in sql_re:
@@ -430,11 +445,42 @@ class db_lite:
     @commit
     def universal_delete_db(self,table:str,where:str=None):
         '''通用删除
-        table：表
-        where：条件
+        - table：表
+        - where：条件
         '''
         sql_text = f'''
         delete from {table}
         where {where}
         '''
         self.cursor.execute(sql_text)
+    
+    @commit
+    def alter_table_db(self,table:str,type:Literal["add","drop","alter"],col:str,datatype:Literal["text","interger","date"] = None):
+        '''添加，删除，改变列（属性）
+        - table：表
+        - type：类型
+        - col：列名
+        - datatype：列的数据类型
+        '''
+        if type == "add":
+            sql_text = f'''
+                alter table {table}
+                {type} {col} {datatype}
+            '''
+        elif type == "drop":
+            sql_text = f'''
+                alter table {table}
+                {type} column {col}
+            '''
+        elif type == "alter":
+            sql_text = f'''
+                alter table {table}
+                {type} column {col} {datatype}
+            '''
+        self.cursor.execute(sql_text)
+    
+    def get_colname(self,table:str) -> list[str]:
+        '''获取表的列名
+        - table：表'''
+        self.cursor.execute(f"PRAGMA table_info({table})")
+        return [i[1] for i in self.__get_sql_redata()]

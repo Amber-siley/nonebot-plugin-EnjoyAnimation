@@ -1,6 +1,6 @@
 from .EnjoyAnimation import *
+from .QBsimpleAPI import login_qb
 from .index import *
-from .QBsimpleAPI import *
 from .variable import (
     month,
     animation_path,
@@ -10,9 +10,10 @@ from .variable import (
     anime_user_help_txt,
     anime_admin_help_txt,
     config,
-    datetime_week
+    datetime_week,
 )
 
+from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 from nonebot.adapters.onebot.v11 import (
@@ -20,13 +21,13 @@ from nonebot.adapters.onebot.v11 import (
     Message
 )
 from nonebot import (
-    on_keyword,
     on_command,
 )
 from nonebot.params import CommandArg,ArgPlainText
 
 animation_db=db_lite(animation_path)
 qbit=login_qb(ani_config.qbit_port,ani_config.qbit_admin,ani_config.qbit_pw)
+
 animation_info=on_command(cmd="本季番剧",aliases={"番剧信息"})
 animation_update=on_command(cmd="番剧更新",aliases={'更新番剧'},permission=SUPERUSER)
 today_update=on_command(cmd="今日更新")
@@ -70,21 +71,59 @@ async def today_update_func(event:MessageEvent):
     await today_update.finish(await return_message(re_message,event))
 
 @animation_inqurie.handle()
-async def animation_inqurie_func(event:MessageEvent,args:Message=CommandArg()):
+async def animation_inqurie_func(match:Matcher,event:MessageEvent,args:Message=CommandArg()):
     '''番剧查询，名字查询，触发具体番剧后update番剧的description，无图片的会尝试爬取图片'''
-    if other:=args.extract_plain_text():
-        if anime_id_list:=animation_db.universal_select_db("names","relation","name",f"%{other}%"):
-            if all(i == anime_id_list[0] for i in anime_id_list):
-                #确定返回的id列表中答案唯一，若不唯一则存在冲突
-                target_id=anime_id_list[0]
-                anime_name=animation_db.universal_select_db("names","name",f"relation={target_id}")[0]
-                if anime_infor:=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={target_id}")[0]:
-                    pic_path,start_date=anime_infor[0],anime_infor[1]
-                    start_date=dlite(start_date).cn_date()
-                    re_msg=MessageSegment.image(file=f"file:///{pic_path}")
-                    await animation_inqurie.finish(message=Message(await return_message(None,event)+f"{anime_name} 于{start_date} 首播\n"+re_msg))
-                    
-                    
+    if args.extract_plain_text():
+        match.set_arg("num",args)
+       
+@animation_inqurie.got("num","请输入番剧名称或者编号")
+async def animation_inqurie_got_func(event:MessageEvent,stat:T_State,args:Message | str=ArgPlainText("num")):
+    '''番剧查询，请求数据'''
+    now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
+    '''当前季度最低时间'''
+    anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
+    if args.isdigit():
+        target_id = anime_id_list[int(args)-1]
+        anime_name = animation_db.universal_select_db("names","name",f"relation={target_id}")[0]
+        if anime_infor:=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={target_id}")[0]:
+            pic_path,start_date=anime_infor[0],anime_infor[1]
+            start_date=dlite(start_date).cn_date()
+            re_msg=MessageSegment.image(file=f"file:///{pic_path}")
+            await animation_inqurie.finish(message=Message(await return_message(None,event)+f"{anime_name} 于{start_date} 首播\n"+re_msg))
+    elif args:
+        anime_id = animation_db.universal_select_db("names","relation","name",f"%{args}%")
+        if len(anime_id) == 1:
+            anime_infor=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={anime_id[0]}")[0]
+            anime_name = animation_db.universal_select_db("names","name",f"relation={anime_id[0]}")[0]
+            pic_path,start_date=anime_infor[0],anime_infor[1]
+            start_date=dlite(start_date).cn_date()
+            re_msg=MessageSegment.image(file=f"file:///{pic_path}")
+            await animation_inqurie.finish(message=Message(await return_message(None,event)+f"{anime_name} 于{start_date} 首播\n"+re_msg))
+        elif len(anime_id) > 1:
+            stat['ids'] = anime_id
+            anime_names = []
+            for i in anime_id:
+                anime_names.append(animation_db.universal_select_db("names","name",f"relation={i}"))
+            msg = "".join([f"{i+1}，{name}\n" for i,name in enumerate(anime_names)])
+            await animation_inqurie.send(msg)
+        else:
+            await animation_inqurie.finish("未检索到相关信息")
+    else:
+        await animation_inqurie.reject()
+
+@animation_inqurie.got("choos","多个查询结果，😯请选择编号：")
+async def animation_inqurie_choos_func(event:MessageEvent,stat:T_State,args:Message | str=ArgPlainText("choos")):
+    '''多个结果选择'''
+    if args.isdigit():
+        anime_id = stat["ids"][int(args)-1]
+        anime_name = animation_db.universal_select_db("names","name",f"relation={anime_id}")[0]
+        anime_infor=animation_db.universal_select_db("animations",("pic_path","start_date"),f"id={anime_id}")[0]
+        pic_path,start_date=anime_infor[0],anime_infor[1]
+        start_date=dlite(start_date).cn_date()
+        re_msg=MessageSegment.image(file=f"file:///{pic_path}")
+        await animation_inqurie.finish(message=Message(await return_message(None,event)+f"{anime_name} 于{start_date} 首播\n"+re_msg))
+    else:
+        await animation_inqurie.reject()
 
 @subscribe_animation.handle()
 async def subscribe_animation_func(match:Matcher,event:MessageEvent,stat:T_State,args:Message=CommandArg()):
@@ -106,6 +145,7 @@ async def subscribe_animation_func(match:Matcher,event:MessageEvent,stat:T_State
                     re_msg=f"动漫 {anime_name} 已添加进追番列表"
                     if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
                         re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
+                    set_subcription_task(anime_id_tmp[0])
                     await subscribe_animation.finish(re_msg)
                 else:
                     for item_index,id in enumerate(anime_id_tmp):
@@ -132,6 +172,7 @@ async def subscribe_animation_chooice_func(match:Matcher,event:MessageEvent,args
             anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
             if int(i) <= 0 or int(i) > len(anime_id_list):
                 await subscribe_animation.reject("请输入合法的番剧编号，请选择订阅编号，或者输入dd退出选择：")
+            set_subcription_task(anime_id_list[int(i)-1])
             insert_qq_anime(id,anime_id_list[int(i)-1])
     await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
@@ -144,6 +185,7 @@ async def subscribe_animation_fix_error(event:MessageEvent,stat:T_State,args:str
     animes = stat["anime_id"]
     id = event.user_id
     for i in nums:
+        set_subcription_task(animes[int(i)-1])
         insert_qq_anime(id,animes[int(i)-1])
     await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
@@ -163,7 +205,7 @@ async def select_sub_anime_func(event:MessageEvent):
     re_msg = ""
     for index,data in enumerate(datas):
         re_msg += f"{index+1}，{data}\n"
-    if msg := await return_message(re_msg,event):
+    if msg := await return_message(re_msg,event) and re_msg:
         await select_sub_animes.finish(Message("您的订阅番剧如下：\n"+msg))
     await select_sub_animes.finish("您还没有没有订阅番剧哟🤔")
     

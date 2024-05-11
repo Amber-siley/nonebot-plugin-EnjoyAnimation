@@ -1,13 +1,12 @@
-import requests,os,json,random,sqlite3,difflib #requests
-from bs4 import BeautifulSoup   #bs4
+import requests,os,json
 from datetime import datetime,timedelta
 from lxml import html,etree #lxml
 
-from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import MessageSegment,MessageEvent,Message
 from .classes import *
 from .schedule_lite import *
 from .html_render import *
+from .QBsimpleAPI import login_qb
 from .variable import (
     text_img_path,
     month,
@@ -16,10 +15,12 @@ from .variable import (
     animation_pic_path,
     enjoy_log,
     ani_config,
-    debug_path
+    debug_path,
+    video_path
 )
 
 animation_db=db_lite(animation_path)
+qbit=login_qb(ani_config.qbit_port,ani_config.qbit_admin,ani_config.qbit_pw)
 
 @timetable.add_job("fixed","1w0h5m30s",233,True)
 async def get_animation_infors():
@@ -31,6 +32,12 @@ async def get_animation_infors():
     site_get=requests.get(url=site,headers=header,timeout=10)
     site_json=json.loads(site_get.text)
     enjoy_log.info("Animation database Updating......")
+    if ani_config.debug_mode:
+        now_time=str(datetime.now())[:-16]
+        onair_json_path=os.path.join(debug_path,f'bgm_onair_{now_time}.json')
+        site_json_path=os.path.join(debug_path,f'bgm_site_{now_time}.json')
+        json_files(onair_json_path).write(onair_json)
+        json_files(site_json_path).write(site_json)
     try:
         for i in onair_json:
             # names=[item for sublist in i["titleTranslate"].values() for item in sublist]+[i["title"]]
@@ -39,7 +46,7 @@ async def get_animation_infors():
                 names+=[item for item in i["titleTranslate"]["zh-Hans"]]
             except:...
             try:
-                names+=[item for item in i["titleTranslate"]["zh-Hans"]]
+                names+=[item for item in i["titleTranslate"]["zh-Hant"]]
             except:...
             names+=[item for subkey in i["titleTranslate"].keys() if subkey not in ["zh-Hans","zh-Hant"] for item in i["titleTranslate"][subkey]]+[i["title"]]
             official=i["officialSite"]
@@ -75,8 +82,8 @@ async def get_animation_infors():
         enjoy_log.info("Animation database bgmlist Completes")
     except AttributeError as attr:
         now_time=str(datetime.now())[:-16]
-        onair_json_path=os.path.join(debug_path,f'yuc_onair_{now_time}.json')
-        site_json_path=os.path.join(debug_path,f'yuc_site_{now_time}.json')
+        onair_json_path=os.path.join(debug_path,f'bgm_onair_{now_time}.json')
+        site_json_path=os.path.join(debug_path,f'bgm_site_{now_time}.json')
         enjoy_log.error(f"Animation database bgmlist error !!! \
                         \nURL_1={onair} \
                         \nURL_2={site}\nerror:{attr} \
@@ -111,11 +118,18 @@ async def yuc_wiki_infors(animation_db:db_lite):
                 time_a=str(time_a)
             else:
                 time_a=None
+            
+            #没有时间戳跳过，我看不见就没有bug
+            if time_a == None:
+                continue
+                
             urls=i.xpath('..//a/@href')
+            status=str(datetime.now())[:-7]
             animation_db.testafter_insert_db(
                 names=[yuc_name],
                 pic_path=yuc_pic_path,
                 urls=urls,
+                status = status,
                 start_date=time_a
             )
         enjoy_log.info("Animation database yuc_wike Completes")
@@ -137,8 +151,6 @@ async def return_message(message:str,event:MessageEvent) ->str | Message:
     elif event.sub_type=="normal":
         if ani_config.need_to:
             re_msg=MessageSegment.reply(event.message_id)
-            if ani_config.need_at:
-                re_msg+=MessageSegment.at(event.user_id)
         if ani_config.need_at:
             re_msg+=MessageSegment.at(event.user_id)
         if ani_config.re_type_img and message:
@@ -175,7 +187,7 @@ def user_subanime(id) -> list[str]:
     return re_data
 
 def use_num_select_animeID(num:str) -> list[int]:
-    '''使用编号其中番剧id为当前季度的番剧id，无法通过id获取往期季度的番剧'''
+    '''使用编号字符串，其中番剧id为当前季度的番剧id，无法通过id获取往期季度的番剧'''
     num = num.split(" ")
     anime_ids = set()
     now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
@@ -191,3 +203,18 @@ def use_num_select_animeID(num:str) -> list[int]:
                 #结果唯一
                 anime_ids.add(tmp[0])
     return anime_ids
+
+def set_subcription_task(anime_id:int):
+    '''设置下载任务'''
+    anime_name = animation_db.universal_select_db("names","name",f"relation={anime_id}")[0]
+    for url,(proxy,cookie_p) in ani_config.bt_dl_url.items():
+        anime_url = qbit._chinese_url_replace_encoding(url,anime_name)
+        animes_len = len(etree.fromstring(requests.get(anime_url,headers=header).content).xpath("//item"))
+        if animes_len > 0:
+            qbit.cn_add_rss(url,anime_name)
+            # qbit.add_rss_dl_rule(anime_name)
+            savepath = os.path.join(video_path,anime_name).replace("\\","/")
+            os.makedirs(savepath,exist_ok=True)
+            # qbit.set_rss_dl_rule(anime_name,[anime_url],savepath)
+            break
+        
