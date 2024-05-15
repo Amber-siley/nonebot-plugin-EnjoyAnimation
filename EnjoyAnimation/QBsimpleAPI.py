@@ -24,6 +24,10 @@ class Byte_to_speed:
         self.unit=unit
         '''下载速度单位'''
 
+    def __str__(self) -> str:
+        return f"""{self.speed} {self.unit}"""    
+    
+    
 class rss_item:
     def __init__(self,nameL:str,item:dict) -> None:
         self.__art_list=item["articles"]
@@ -114,7 +118,11 @@ class login_qb:
         self.session=requests.session()
         self.__session=self.session
         if not self.ok:
-            enjoy_log.warning("qbittorrent未连接")
+            enjoy_log.warning(f"qbittorrent 未连接 \n \
+                \t url = {self.__root_url} \n \
+                \t login = {self.login_data}")
+        else:
+            enjoy_log.info(f"qbittorrent 已链接")
     
     @property
     def __add_torrent_setting(self):
@@ -171,7 +179,7 @@ class login_qb:
             raise ValueError("路径错误")
 
     def add_download_torrent(self,pa_url:str,save_path:str=None,cookie:dict={},proxy:str=None):
-        '''添加bt种子文件
+        '''添加bt种子文件任务
         - path：种子文件路径 或者 torrent网址
         - save_path：保存路径，默认为默认保存路径
         - cookie：通过网址添加任务的时候可能会用到
@@ -246,20 +254,20 @@ class login_qb:
         '''添加rss下载器'''
         self.session.post(url=self.__add_rss_download_rule,data={"ruleName":rulename,"ruleDef":ruledef})
     
-    def set_rss_dl_rule(self,rulename:str,addrule:list[str] | str,savepath:str):
-        '''设置rss下载器    吾日三试，奈何无果，遂放弃
-        - rulename：规则名称
-        - addrule：rss订阅链接列表
-        - savepath：下载保存路径'''
-        set_dr = self._rss_default_donlowd_ruleDef
-        if isinstance(addrule,str):
-            addrule = [addrule]
-        set_dr["affectedFeeds"] = addrule
-        set_dr["enabled"] = False
-        set_dr["torrentParams"]["save_path"] = savepath
-        data = {"ruleName":rulename,"ruleDef":set_dr}
-        self.session.post(url=self.__add_rss_download_rule,data=data)
-        self.session.get(url=self.__matching_artcles_url,params={"ruleName":rulename})
+    # def set_rss_dl_rule(self,rulename:str,addrule:list[str] | str,savepath:str):
+    #     '''设置rss下载器    吾日三试，奈何无果，遂放弃
+    #     - rulename：规则名称
+    #     - addrule：rss订阅链接列表
+    #     - savepath：下载保存路径'''
+    #     set_dr = self._rss_default_donlowd_ruleDef
+    #     if isinstance(addrule,str):
+    #         addrule = [addrule]
+    #     set_dr["affectedFeeds"] = addrule
+    #     set_dr["enabled"] = False
+    #     set_dr["torrentParams"]["save_path"] = savepath
+    #     data = {"ruleName":rulename,"ruleDef":set_dr}
+    #     self.session.post(url=self.__add_rss_download_rule,data=data)
+    #     self.session.get(url=self.__matching_artcles_url,params={"ruleName":rulename})
     
     @property
     def rss_infor(self)->list[rss_item]:
@@ -294,6 +302,10 @@ class login_qb:
         return(re.sub(re_rule,quote(tmp_str),url,1))
         
 class bt_dl_lite:
-    '''torrent文件下载及其管理 未完成'''
-    def __init__(self) -> None:
-        self.urls=ani_config.bt_dl_url
+    '''torrent文件下载及其管理 未完成 \n
+    ps：因为尝试使用webui来更改rss下载器设置，但是失败了（不清楚哪里出问题了），只能自己写torrent文件管理了'''
+    urls=ani_config.bt_dl_url
+    
+    @property
+    def rss_infor(self):
+        ...

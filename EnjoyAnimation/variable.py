@@ -122,10 +122,9 @@ os.makedirs(debug_path,exist_ok=True)
 
 #db
 month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度对应的时间表
-animes_db_colnames = ['id', 'pic_path', 'start_date', 'JP_start_date_UTC8', 'CN_start_date', 'status', 'official_url',"description"] #animations列名
-
-#qbit-api
-
+animes_db_colnames = {'id':'integer', 'pic_path':'text', 'start_date':"date", 'JP_start_date_UTC8':'date', \
+    'CN_start_date':'date', 'status':"date", 'official_url':'text',"description":'text',"anime_type":"text",\
+    "anime_typetag":'text',"pv":"text","froms":"text","episodes":"text"} #animations列名
 
 #nonebot
 dirver=get_driver()             #驱动器
@@ -139,9 +138,9 @@ Commands：(必须参数)【可选参数】
 #番剧帮助：显示帮助
 #番剧信息：返回当前季度番剧列表
 #今日更新：返回今日更新番剧列表
+#我的追番：获取用户订阅的番剧
 #番剧查询 【番剧名称】：返回番剧详细信息
 #番剧订阅 【番剧名称】：订阅番剧设置下载任务，自动提醒
-#我的追番：获取用户订阅的番剧
 #取消追番 【番剧编号】：取消订阅番剧
 '''
 anime_admin_help_txt='''

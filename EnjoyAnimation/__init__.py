@@ -1,5 +1,4 @@
 from .EnjoyAnimation import *
-from .QBsimpleAPI import login_qb
 from .index import *
 from .variable import (
     month,
@@ -26,7 +25,6 @@ from nonebot import (
 from nonebot.params import CommandArg,ArgPlainText
 
 animation_db=db_lite(animation_path)
-qbit=login_qb(ani_config.qbit_port,ani_config.qbit_admin,ani_config.qbit_pw)
 
 animation_info=on_command(cmd="本季番剧",aliases={"番剧信息"})
 animation_update=on_command(cmd="番剧更新",aliases={'更新番剧'},permission=SUPERUSER)
@@ -42,9 +40,7 @@ sreach_anime_configs=on_command(cmd="debug番剧配置项")
 async def animation_info_func(event:MessageEvent):
     '''番剧信息返回本季番剧列表'''
     re_message=""
-    now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
-    '''当前季度最低时间'''
-    anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
+    anime_id_list = get_nowM_animeidlist()
     for i,id in enumerate(anime_id_list):
         anime_name=animation_db.universal_select_db("names","name",f"relation={id}",order="row_id")[0]
         re_message+=f"{i+1}，{anime_name}\n"
@@ -62,7 +58,7 @@ async def animation_update_func(event:MessageEvent):
 async def today_update_func(event:MessageEvent):
     '''返回当日更新的番剧'''
     re_message=""
-    anime_id_list=animation_db.universal_select_db("animations",("id","start_date"),f"datetime(status)>=datetime('{dlite.testfor_lastweek()}')")
+    anime_id_list=animation_db.universal_select_db("animations",("id","start_date"),f"datetime(status)>=datetime('{dlite.testfor_lastweek()}') and froms='yuc'")
     anime_id_list=[i[0] for i in anime_id_list if dlite(i[1]).week==datetime.now().weekday()]
     for i,id in enumerate(anime_id_list):
         anime_name=animation_db.universal_select_db("names","name",f"relation={id}")[0]
@@ -79,9 +75,7 @@ async def animation_inqurie_func(match:Matcher,event:MessageEvent,args:Message=C
 @animation_inqurie.got("num","请输入番剧名称或者编号")
 async def animation_inqurie_got_func(event:MessageEvent,stat:T_State,args:Message | str=ArgPlainText("num")):
     '''番剧查询，请求数据'''
-    now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
-    '''当前季度最低时间'''
-    anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
+    anime_id_list=get_nowM_animeidlist()
     if args.isdigit():
         target_id = anime_id_list[int(args)-1]
         anime_name = animation_db.universal_select_db("names","name",f"relation={target_id}")[0]
@@ -103,9 +97,9 @@ async def animation_inqurie_got_func(event:MessageEvent,stat:T_State,args:Messag
             stat['ids'] = anime_id
             anime_names = []
             for i in anime_id:
-                anime_names.append(animation_db.universal_select_db("names","name",f"relation={i}"))
+                anime_names.append(animation_db.universal_select_db("names","name",f"relation={i}")[0])
             msg = "".join([f"{i+1}，{name}\n" for i,name in enumerate(anime_names)])
-            await animation_inqurie.send(msg)
+            await animation_inqurie.send(await return_message(msg,event))
         else:
             await animation_inqurie.finish("未检索到相关信息")
     else:
@@ -167,9 +161,7 @@ async def subscribe_animation_chooice_func(match:Matcher,event:MessageEvent,args
     nums = args.split(" ")
     for i in nums:
         if i.isdigit():
-            now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
-            '''当前季度最低时间'''
-            anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}')")
+            anime_id_list=get_nowM_animeidlist()
             if int(i) <= 0 or int(i) > len(anime_id_list):
                 await subscribe_animation.reject("请输入合法的番剧编号，请选择订阅编号，或者输入dd退出选择：")
             set_subcription_task(anime_id_list[int(i)-1])

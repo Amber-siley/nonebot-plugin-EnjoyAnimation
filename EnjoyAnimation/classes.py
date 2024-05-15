@@ -28,14 +28,14 @@ class json_files:
 class isotime_format:
     '''UTC时间字符格式转换'''
     def __init__(self,time_str:str) -> None:
-        self.iso_time_str=time_str
-        self.__time_str_list=self.iso_time_str.replace(".","!.").replace('/',"/!").split("!")
-        for i in self.__time_str_list:
-            try:
-                self.time_datetime=datetime.fromisoformat(i)
-                break
-            except ValueError:
-                continue
+        if len(time_str) < 13:
+            raise KeyError
+        if time_str.startswith("R/"):
+            self.iso_time_str=time_str[2:-9]
+        else:
+            self.iso_time_str=time_str[:-5]
+        self.time_datetime=datetime.fromisoformat(self.iso_time_str)
+        
     def datetime_operation(self,oper:str,unit:str,var:int):
         '''datetime的运算+/-
         - oper:"+"/"-"
@@ -113,11 +113,11 @@ class db_lite:
     def __fix_self(self):
         '''自捡，'''
         anime_colnames = self.get_colname("animations")
-        for anime in animes_db_colnames:
+        for anime in animes_db_colnames.keys():
             #检查animations中的列名是否缺失
             if anime not in anime_colnames:
                 #缺失列则添加
-                self.alter_table_db("animations","add",anime,"text")
+                self.alter_table_db("animations","add",anime,animes_db_colnames[anime])
                 enjoy_log.debug(f"在animations中缺失 {anime} 已添加")
                 
     @commit
@@ -132,9 +132,14 @@ class db_lite:
                                 start_date date,
                                 JP_start_date_UTC8 date,
                                 CN_start_date date,
-                                status,
+                                status date,
+                                froms text,
                                 official_url text,
-                                description text
+                                pv text,
+                                description text,
+                                anime_type text,
+                                anime_typetag text,
+                                episodes text
                             ) 
                             ''')
         self.cursor.execute(''' 
@@ -181,15 +186,13 @@ class db_lite:
         self.__fix_self()
 
     def test_name_db(self,names:list | str) -> bool:
-        '''检测动漫信息是否存在数据库中'''
+        '''检测动漫名称是否存在数据库中'''
         back=False
         if isinstance(names,str):
             names=[names]
-        tmp_list=self.universal_select_db(table="names",attribute="name")
-        for i in names:
-            if i in tmp_list:
-                back=True
-                # enjoy_log.debug(f"动漫{names}存在于{i}")
+        for name in names:
+            if self.universal_select_db(table="names",attribute="relation",where="name",like=f"""{name}"""):
+                back = True
                 break
         return back
     
@@ -204,6 +207,10 @@ class db_lite:
                 
             >>> 在animations中插入数据'animations',{"path":path,"JP_start_date_UTC8":JP_start_date_UTC8,"status":status,"official_url":official}
             >>> 插入sql语句’names‘,{"name":item,"relation":"run(select max(id) from animations)"}'''
+        if all([True if i==None else False for i in kwargs.values()]):
+            #参数为设置则什么都不执行
+            return 0
+        
         attrbute=str(tuple(kwargs.keys()))
         value=str(tuple(i if i is not None else 'NULL' for i in list(kwargs.values()))).replace("'NULL'","NULL")
         sql_text=f'''
@@ -220,134 +227,94 @@ class db_lite:
         
     @commit
     def insert_animation_info_db(self,
-                                 names:list[str],
-                                 pic_path:str,
+                                 names:list[str]=None,
+                                 pic_path:str=None,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
                                  status=None,
+                                 froms=None,
                                  urls:list=None,
                                  official:str=None):
-        '''插入animations数据'''
-        really=True
-        tmp_list=self.universal_select_db(table="names",attribute="name")
+        '''插入animations信息数据 
+        重写后：仅保存插入功能移除名称检测\n
+        属性对照表格
+        | value | table |
+        |:-:|:-:|
+        | names | names |
+        | pic_path | animations |
+        | start_date | animations |
+        | jp_start_date | animations |
+        | cn_start_date | animations |
+        | status | animations |
+        | urls | urls |
+        | froms | animations |
+        | offical | animations |'''
+        tmp_data = {
+            "pic_path":pic_path,
+            "start_date":start_date,
+            "JP_start_date_UTC8":JP_start_date_UTC8,
+            "CN_start_date":CN_start_date,
+            "status":status,
+            "froms":froms,
+            "official_url":official
+        }
         
-        def test_name(name_list:list | str)->tuple[bool,int]:
-            '''检测是否不近似存在于names表中'''
-            if isinstance(name_list,str):
-                name_list=[name_list]
-            for i in name_list:
-                i=re.sub(r"[,，?？！~]","",i).replace(" ","")
-                if len(i)>5:
-                    rou=i[:round(len(i)*0.8)]
-                else:
-                    rou=i
-                for j in tmp_list:
-                    z=re.sub(r"[,，?？！~]","",j).replace(" ","")
-                    Match=difflib.SequenceMatcher(None,rou,z[:len(rou)])
-                    if Match.ratio() >= 0.7:
-                        num=self.universal_select_db("names","relation",f"name=\"{j}\"")[0]
-                        enjoy_log.debug(f"{j} 的别称为 {i} 其中 {rou} 置信度为 {Match.ratio()}")
-                        return False,num
-            return True,None
+        #插入animations表
+        self.universal_insert_db("animations",**tmp_data)
+        #插入names表
+        for name in names:
+            self.universal_insert_db("names",name=name,relation="run(select max(id) from animations)")
+        #插入url表
+        for url in urls:
+            self.universal_insert_db("urls",url=url,relation="run(select max(id) from animations)")
         
-        really,num=test_name(names)
-        
-        if pic_path and really:
-            for i in names:
-                i=re.sub(r"第\d期","",i)
-                tmp=requests.get(url=f"https://zh.moegirl.org.cn/{i}",headers=header)
-                Match=re.search(r'"title":\s*"([^"]*)"',tmp.text)
-                if Match:
-                    name=Match.group(1)
-                    really,num=test_name(name)
-                    if not really:
-                        enjoy_log.debug(f"别称存在 {i}")
-
-        if really:
-            tmp_data={
-                "pic_path":pic_path,
-                "start_date":start_date,
-                "JP_start_date_UTC8":JP_start_date_UTC8,
-                "CN_start_date":CN_start_date,
-                "status":status,
-                "official_url":official
-            }
-            self.universal_insert_db('animations',**tmp_data)
-            for i in names:
-                if i not in self.universal_select_db("names","name",f'name="{i}"'):
-                    tmp_data={
-                        "name":i,
-                        "relation":"run(select max(id) from animations)"
-                    }
-                    self.universal_insert_db('names',**tmp_data)
-                    enjoy_log.debug(f"{i} 未找到别称 已添加进数据库")
-            for i in urls:
-                if i not in self.universal_select_db("urls","url",f'url="{i}"'):
-                    tmp_data={
-                        "url":i,
-                        "relation":"run(select max(id) from animations)"
-                    }
-                    self.universal_insert_db('urls',**tmp_data)
-        else:
-            for i in names:
-                if i not in self.universal_select_db("names","name",f'name="{i}"'):
-                    tmp_data={
-                        "name":i,
-                        "relation":num
-                    }
-                    self.universal_insert_db("names",**tmp_data)
-            for i in urls:
-                if i not in self.universal_select_db("urls","url",f'url="{i}"'):
-                    tmp_data={
-                        "url":i,
-                        "relation":num
-                    }
-                    self.universal_insert_db('urls',**tmp_data)
-            tmp_data={
-                "pic_path":pic_path
-            }
-            if pic_path != None:
-                self.universal_update_db("animations",f"id={num}",None,**tmp_data)
-    
     @commit
     def update_animation_info_db(self,
-                                 names:list[str],
-                                 pic_path:str,
+                                 id,
+                                 names:list[str]=None,
+                                 pic_path:str=None,
                                  start_date=None,
                                  JP_start_date_UTC8=None,
                                  CN_start_date=None,
                                  status=None,
+                                 froms=None,
                                  urls:list=None,
+                                 pv=None,
+                                 anime_type=None,
+                                 episodes=None,
+                                 anime_typetag=None,
                                  official:str=None):
-        '''更新animations数据'''
+        '''更新animations信息数据，但也会执行插入操作，因为必须指定id'''
         tmp_data={
             "pic_path":pic_path,
             "start_date":start_date,
             "JP_start_date_UTC8":JP_start_date_UTC8,
             "CN_start_date":CN_start_date,
             "status":status,
+            "froms":froms,
+            "pv":pv,
+            "episodes":episodes,
+            "anime_type":anime_type,
+            "anime_typetag":anime_typetag,
             "official_url":official
         }
 
-        def return_namelist_id(name_list):
-            '''返回数据库中该项需要更新的编号 不存在的项将添加'''
-            tmp_list=self.universal_select_db(table="names",attribute="name")
-            for i in name_list:
-                if i in tmp_list:
-                    index=self.universal_select_db(table="names",attribute="relation",where=f'''name="{i}"''')[0]
-                    break
-            if index:
-                for i in name_list:
-                    if i not in tmp_list:
-                        # enjoy_log.debug(f"{i}不存在")
-                        tmp_name_at_id={"name":i,"relation":index}
-                        self.universal_insert_db(table="names",**tmp_name_at_id)
-                return index
-            return False
-        self.universal_update_db("animations",f"id={return_namelist_id(names)}",**tmp_data)
+        #更新animations表
+        self.universal_update_db("animations",f"id={id}",**tmp_data)
+        #插入names表
+        if names:
+            exists_names = self.universal_select_db("names","name",f"relation={id}")
+            not_exists_names = [i for i in names if i not in exists_names]
+            for name in not_exists_names:
+                self.universal_insert_db("names",name = name,relation=id)
+        #插入urls表
+        if urls:
+            exists_urls = self.universal_select_db("urls","url",f"relation={id}")
+            not_exists_urls = [i for i in urls if i not in exists_urls]
+            for url in not_exists_urls:
+                self.universal_insert_db("urls",url = url,relation=id)
             
-    
     @commit 
     def reset_table(self,table):
         '''重置表'''
@@ -355,15 +322,24 @@ class db_lite:
                             truncate table ?
                             ''',(table))
     
-    @commit
-    def testafter_insert_db(self,**kwargs):
-        '''检测是否存在，不存在则添加，存在则更新'''
-        if not self.test_name_db(names=kwargs["names"]):
-            #添加
-            self.insert_animation_info_db(**kwargs)
-        else:
-            #更新
-            self.update_animation_info_db(**kwargs)
+    def name_ratio(self,name_list:list | str)->int:
+        '''检测动漫名称的相似度大于0.7的id'''
+        tmp_list = self.universal_select_db("names","name")
+        if isinstance(name_list,str):
+            name_list=[name_list]
+        for i in name_list:
+            i=re.sub(r"[,，?？！~]","",i).replace(" ","")
+            if len(i)>5:
+                rou=i[:round(len(i)*0.8)]
+            else:
+                rou=i
+            for j in tmp_list:
+                z=re.sub(r"[,，?？！~]","",j).replace(" ","")
+                Match=difflib.SequenceMatcher(None,rou,z[:len(rou)])
+                if Match.ratio() >= 0.7:
+                    num=self.universal_select_db("names","relation",f"name=\"{j}\"")[0]
+                    return num
+        return False
     
     def __run_command(self,rule:str,sql_text):
         '''指令解析
@@ -391,7 +367,7 @@ class db_lite:
         attribute=self.__run_command(r'run\((.*?\))\)',attribute)
         sql_text=f'''select {attribute} from {table} where {where} '''
         if like:
-            sql_text+=f"like '{like}'"
+            sql_text+=f'''like "{like}"'''
         if order:
             sql_text+=f'''order by {order} {by}'''
         try:

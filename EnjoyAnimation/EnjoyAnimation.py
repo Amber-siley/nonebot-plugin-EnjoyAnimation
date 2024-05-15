@@ -69,16 +69,43 @@ async def get_animation_infors():
             else:
                 CN_start_date=None
             status=str(datetime.now())[:-7]
-            animation_db.testafter_insert_db(
-                names=names,
-                pic_path=None,
-                start_date=start_date,
-                JP_start_date_UTC8=JP_start_date_UTC8,
-                CN_start_date=CN_start_date,
-                official=official,
-                status=status,
-                urls=urls
-            )
+            
+            #加判断
+            lock,__lock = False,True
+            
+            for name in names:
+                if relations := animation_db.universal_select_db("names","relation",f'''name="{name}"'''):
+                    if __lock:
+                        id = relations[0]
+                    lock = True
+                    __Lock = False
+            
+            
+            #通过names判断是否存在数据库中
+            if lock:
+                #存在于数据库中
+                animation_db.update_animation_info_db(
+                    id=id,
+                    names=names,
+                    start_date=start_date,
+                    JP_start_date_UTC8=JP_start_date_UTC8,
+                    CN_start_date=CN_start_date,
+                    official=official,
+                    froms="bgm",
+                    status=status,
+                )
+            else:
+                #不存在于数据库中
+                animation_db.insert_animation_info_db(
+                    names=names,
+                    start_date=start_date,
+                    JP_start_date_UTC8=JP_start_date_UTC8,
+                    CN_start_date=CN_start_date,
+                    official=official,
+                    froms="bgm",
+                    status=status,
+                    urls=urls
+                )
         enjoy_log.info("Animation database bgmlist Completes")
     except AttributeError as attr:
         now_time=str(datetime.now())[:-16]
@@ -86,53 +113,70 @@ async def get_animation_infors():
         site_json_path=os.path.join(debug_path,f'bgm_site_{now_time}.json')
         enjoy_log.error(f"Animation database bgmlist error !!! \
                         \nURL_1={onair} \
-                        \nURL_2={site}\nerror:{attr} \
+                        \nURL_2={site}\nerror:{attr}{i} \
                         \nfile_1:{onair_json_path} \
                         \nfile_2:{site_json_path}")
         json_files(onair_json_path).write(onair_json)
         json_files(site_json_path).write(site_json)
+    
+    # 取消对yuc_wike的信息爬取，未来可能会加上
     await yuc_wiki_infors(animation_db)
     
     
 async def yuc_wiki_infors(animation_db:db_lite):
-    '''yuc_wiki网站的信息爬取整合''' 
+    '''yuc_wiki网站的信息爬取整合 对bgm信息爬取的完善，不补充不存在的信息''' 
     now=datetime.now()
     yuc_url=f"https://yuc.wiki/{now.year}{month[now.month-1]}/"
     yuc_text=requests.get(url=yuc_url,headers=header,timeout=10).text
     yuc_items=html.fromstring(yuc_text)
+    status=str(datetime.now())[:-7]
     try:
-        yuc_list=yuc_items.xpath('//div[@style="float:left"]/div[@class="div_date" or @class="div_date_"]')
-        for i in yuc_list:
-            yuc_name="".join(i.xpath('..//td[@class="date_title" or @class="date_title_" or @class="date_title__"]//text()'))
-            yuc_name=re.sub(r'Part.\d',"",yuc_name).replace("/","_")
-            yuc_pic_url="".join(i.xpath('.//img/@src')).replace(" ","")
-            yuc_pic_path=os.path.join(animation_pic_path,f"{yuc_name}.jpg")
-            if not os.path.isfile(yuc_pic_path):
-                with open(yuc_pic_path,"xb") as xb:
-                    xb.write(requests.get(url=yuc_pic_url,headers=header,timeout=10).content)
-            time_1=("".join(i.xpath('./p[@class="imgtext" or @class="imgtext2"]/text()')))[:-1]
-            time_2=("".join(i.xpath('./p[@class="imgep"]/text()'))).replace(" ","")[:-1].split(":")
-            if time_1:
-                time_a=datetime.strptime(f"{now.year}-{time_1}","%Y-%m/%d")
-                time_a=time_a+timedelta(days=int(time_2[0])//24,hours=int(time_2[0])%24,minutes=int(time_2[1]))
-                time_a=str(time_a)
-            else:
-                time_a=None
-            
-            #没有时间戳跳过，我看不见就没有bug
-            if time_a == None:
-                continue
+        pic_urls = yuc_items.xpath("//div[@style='float:left']/img/@src")
+        title_cns_items = yuc_items.xpath("//td[@class='title_main_r']/p[@class='title_cn_r' or @class='title_cn_r3' or @class='title_cn_r2' or @class='title_cn_r1']")
+        title_cns = [i.xpath('string()') for i in title_cns_items]
+        title_jps_items = yuc_items.xpath("//td[@class='title_main_r']/p[@class='title_jp_r' or @class='title_jp_r3' or @class='title_jp_r2' or @class='title_jp_r1']")
+        title_jps = [i.xpath('string()') for i in title_jps_items]
+        pvs = yuc_items.xpath("//td[@class='link_a_r']/a[last()]/@href")
+        anime_types_items = yuc_items.xpath("//td[@class='type_c_r' or @class='type_a_r' or @class='type_b_r' or @class='type_d_r' or @class='type_e_r' or @class='type_e_r1']")
+        anime_types = [i.xpath("string()") for i in anime_types_items]
+        anime_tags_items = yuc_items.xpath("//td[@class='type_tag_r' or @class='type_tag_r1']")
+        anime_tags = [i.xpath("string()") for i in anime_tags_items]
+        anime_episodes_items = yuc_items.xpath("//p[@class='broadcast_ex_r']")
+        anime_episodes =  [i.xpath("string()") for i in anime_episodes_items]
+        
+        if len(pic_urls) == len(title_cns) == len(title_jps) == len(pvs) == \
+            len(anime_types) == len(anime_tags) == len(anime_episodes):
+            for index in range(len(pic_urls)):
+                cns = title_cns[index].split(" / ")
+                jps = title_jps[index].split(" / ")
+                names = cns + jps
                 
-            urls=i.xpath('..//a/@href')
-            status=str(datetime.now())[:-7]
-            animation_db.testafter_insert_db(
-                names=[yuc_name],
-                pic_path=yuc_pic_path,
-                urls=urls,
-                status = status,
-                start_date=time_a
-            )
-        enjoy_log.info("Animation database yuc_wike Completes")
+                if num:=animation_db.name_ratio(names):
+                    #get picture
+                    pic_path = os.path.join(animation_pic_path,f"{names[0]}.png")
+                    if not os.path.isfile(pic_path):
+                        with open(pic_path,"xb") as xb:
+                            xb.write(requests.get(url=pic_urls[index],headers=header,timeout=10).content)
+                        
+                    #更新动漫信息
+                    animation_db.update_animation_info_db(
+                        id = num,
+                        names=names,
+                        pic_path=pic_path,
+                        status=status,
+                        pv = pvs[index],
+                        anime_typetag = anime_tags[index],
+                        anime_type = anime_types[index],
+                        froms = "yuc",
+                        episodes=anime_episodes[index]
+                    )
+                else:
+                    #未找到别称
+                    enjoy_log.debug(f"{names}未找到别称")
+            enjoy_log.info("Animation database yucwiki Completes")
+        else:
+            enjoy_log.error(f"Animation database yuc_wike error !!! \nURL：{yuc_url} (可以反馈给开发者哦)")
+        
     except AttributeError:
         enjoy_log.error(f"Animation database yuc_wike error !!! \nURL：{yuc_url}")
         
@@ -217,4 +261,10 @@ def set_subcription_task(anime_id:int):
             os.makedirs(savepath,exist_ok=True)
             # qbit.set_rss_dl_rule(anime_name,[anime_url],savepath)
             break
-        
+    
+def get_nowM_animeidlist():
+    '''获取当前季度返回的番剧id列表'''
+    now=str(datetime.strptime(f"{datetime.now().year}-{month[datetime.now().month-1]}","%Y-%m").strftime("%Y-%m-%d %H:%M:%S"))
+    '''当前季度最低时间'''
+    anime_id_list=animation_db.universal_select_db("animations","id",f"datetime(start_date)>=datetime('{now}') and froms='yuc'")
+    return anime_id_list
