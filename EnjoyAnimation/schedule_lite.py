@@ -1,6 +1,6 @@
 import re,asyncio,threading,inspect
 from datetime import datetime,timedelta
-from typing import Callable,List
+from typing import Callable,List,Literal
 
 class task_infor:
     def __init__(self,type:str,time_units:dict,func_name:str,func,first_run,run_time=None,task_id=None) -> None:
@@ -31,7 +31,7 @@ class schedule_lite:
     def status(self):
         return self.thread.is_alive()
     
-    def add_job(self,type:str=None,time_str:str=None,task_id:int=None,first_run:bool=False):
+    def add_job(self,type:Literal["interval","fixed","date"]=None,time_str:str=None,task_id:int=None,first_run:bool=False):
         '''type-->类型字符串:
             - （interval------------间隔执行）
             - （fixed----------固定时间执行）   

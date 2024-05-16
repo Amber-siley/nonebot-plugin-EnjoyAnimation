@@ -3,10 +3,9 @@ import json,requests,os,re
 from datetime import datetime as dt
 from lxml import html
 from .variable import (
-    ani_config,
     enjoy_log
 )
-from urllib.parse import quote,unquote
+from urllib.parse import quote
 
 class Byte_to_speed:
     def __init__(self,byte:int) -> None:
@@ -29,11 +28,23 @@ class Byte_to_speed:
     
     
 class rss_item:
-    def __init__(self,nameL:str,item:dict) -> None:
-        self.__art_list=item["articles"]
-        self.uid=item["uid"].replace("{","").replace("}","")
-        self.url=item["url"]
-        self.name=nameL
+    def __init__(self,data:dict) -> None:
+        self.titles = list(data.keys())
+        self.rss_list = [self.one_rss(i) for i in data.items()]
+        self.rss_urls = [i.url for i in self.rss_list]
+        self.torrent_urls = [j.torrenturl for i in self.rss_list for j in i.art_list]
+        self.hashs = [j.hash for i in self.rss_list for j in i.art_list]
+        self.hash_to_Turl = {j.hash:j.torrenturl for i in self.rss_list for j in i.art_list}
+        self.hash_to_rssname = {j.hash:i.rss_name for i in self.rss_list for j in i.art_list}
+    
+    class one_rss:
+        def __init__(self,data:tuple) -> None:
+            self.rss_name,infor = data 
+            self.title = infor["title"]
+            self.uid = infor["uid"].replace("{","").replace("}","")
+            self.url = infor["url"]
+            self.art_list = [rss_item.one_torrent(i) for i in infor["articles"]]
+            """articles列表"""
     
     class one_torrent:
         def __init__(self,data:dict) -> None:
@@ -44,16 +55,29 @@ class rss_item:
             pic_url=tmp
             title=data["title"]
             torrenturl=data["torrentURL"]
+            
+            self.hash = re.findall(r"&hash=(\w+)",torrenturl)[0]
             self.pic_url=pic_url
             self.title=title
             self.torrenturl=torrenturl
 
-    @property
-    def art_list(self) ->list[one_torrent]:
-        ret=[]
-        for i in self.__art_list:
-            ret.append(self.one_torrent(i))
-        return ret
+class dowload_item:
+    def __init__(self,data:dict) -> None:
+        self.__torrents:dict = data["torrents"]
+        self.hashs = list(self.__torrents.keys())
+        self.task_list = [self.one_task(i) for i in self.__torrents.items()]
+    
+    class one_task:
+        def __init__(self,data:tuple) -> None:
+            self.hash , _ = data
+            self.progress = self.__get_value(_,"progress",1)
+
+        @staticmethod
+        def __get_value(data:str,key:str,default=None):
+            try:
+                return data[key]
+            except:
+                return default
         
 class login_qb:
     _rss_default_ruleDef={"addPaused":None,#添加后不开始下载None,True,False
@@ -87,6 +111,8 @@ class login_qb:
                                                      "upload_limit":-1,
                                                      "use_auto_tmm":False,
                                                      "stopped":False}
+    
+    NaN = float("nan")
     
     def __init__(self,port:int,login_user:str=None,login_passwd:str=None) -> None:
         '''
@@ -126,6 +152,7 @@ class login_qb:
     
     @property
     def __add_torrent_setting(self):
+        '''从文件选择添加任务设置参数'''
         return {
             "autoTMM": self.user_setting["auto_tmm_enabled"],
             "savepath": self.user_setting["save_path"],
@@ -187,7 +214,7 @@ class login_qb:
         url_dl=self.__add_torrent_setting
         if save_path:
             if os.path.exists(save_path):
-                url_dl["savepath"]=save_path
+                url_dl["savepath"]=save_path.replace("\\","/")
         if os.path.exists(path=pa_url):
             with open(pa_url,"rb") as r:
                 torrent_bit=r.read()
@@ -200,7 +227,7 @@ class login_qb:
             self.session.post(url=self.__add_torrent_url,data=url_dl)
         else:
             raise ValueError("路径，网址，或者代理有问题")
-            
+     
     def _get_download_infor(self) -> dict:
         '''获取下载信息'''
         return json.loads(self.session.get(url=self.__get_download_infor_url).text)
@@ -211,11 +238,10 @@ class login_qb:
         tmp=self._get_download_infor()["server_state"]["dl_info_speed"]
         return Byte_to_speed(tmp)
     
-    def get_download_project(self):
-        '''获取下载项目的信息hash值'''
-        tmp:dict=self._get_download_infor()["torrents"]
-        tmp_keys=list(tmp.keys)
-        return tmp_keys
+    @property
+    def download_info(self):
+        '''获取下载项目的信息'''
+        return dowload_item(self._get_download_infor())
     
     def add_rss(self,rss_url:str,r_path:str="") ->bool:
         '''添加rss订阅，返回是否成功的布尔值
@@ -254,29 +280,11 @@ class login_qb:
         '''添加rss下载器'''
         self.session.post(url=self.__add_rss_download_rule,data={"ruleName":rulename,"ruleDef":ruledef})
     
-    # def set_rss_dl_rule(self,rulename:str,addrule:list[str] | str,savepath:str):
-    #     '''设置rss下载器    吾日三试，奈何无果，遂放弃
-    #     - rulename：规则名称
-    #     - addrule：rss订阅链接列表
-    #     - savepath：下载保存路径'''
-    #     set_dr = self._rss_default_donlowd_ruleDef
-    #     if isinstance(addrule,str):
-    #         addrule = [addrule]
-    #     set_dr["affectedFeeds"] = addrule
-    #     set_dr["enabled"] = False
-    #     set_dr["torrentParams"]["save_path"] = savepath
-    #     data = {"ruleName":rulename,"ruleDef":set_dr}
-    #     self.session.post(url=self.__add_rss_download_rule,data=data)
-    #     self.session.get(url=self.__matching_artcles_url,params={"ruleName":rulename})
-    
     @property
-    def rss_infor(self)->list[rss_item]:
+    def rss_infor(self) -> rss_item:
         '''rss订阅信息,返回rss_item类对象的列表'''
         infors:dict=json.loads(self.session.get(url=self.__get_rss_infor_url).text)
-        re=[]
-        for i in infors:
-            re.append(rss_item(i,infors[i]))
-        return re
+        return rss_item(infors)
     
     def refres_rss(self):
         '''刷新rss订阅'''
@@ -294,18 +302,11 @@ class login_qb:
         with open(f"{dt.now().day}.json","w",encoding="utf-8") as w:
             json.dump(json_str,w,indent=4,ensure_ascii=False)
 
-    def _chinese_url_replace_encoding(self,url:str,tmp_str:str="") ->str:
+    @staticmethod
+    def _chinese_url_replace_encoding(url:str,tmp_str:str="") ->str:
         '''将中文编码转url进行拼接
         - url：https://www.example.com/.xml?item={xxx}，{xxx}会被替换成tmp_str中的字符
         - tmp_str：需要进行替换的字符串，将会使用url进行编码'''
         re_rule="\{x{3}\}"
         return(re.sub(re_rule,quote(tmp_str),url,1))
-        
-class bt_dl_lite:
-    '''torrent文件下载及其管理 未完成 \n
-    ps：因为尝试使用webui来更改rss下载器设置，但是失败了（不清楚哪里出问题了），只能自己写torrent文件管理了'''
-    urls=ani_config.bt_dl_url
-    
-    @property
-    def rss_infor(self):
-        ...
+                

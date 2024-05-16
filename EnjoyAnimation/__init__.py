@@ -1,7 +1,6 @@
 from .EnjoyAnimation import *
 from .index import *
 from .variable import (
-    month,
     animation_path,
     yes_list,
     video_path,
