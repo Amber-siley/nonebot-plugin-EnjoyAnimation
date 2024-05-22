@@ -15,7 +15,7 @@ class ani_configs:
             "need_to":True,
             "need_at":True,
             "qbit_port":8070,
-            "qbit_admin":None,
+            "qbit_admin":"admin",
             "qbit_pw":None,
             "proxy":None,
             "web_ui":False,
@@ -26,7 +26,10 @@ class ani_configs:
             "acgrip_enable":False,
             "kisssub_enable":True,
             "kisssub_cookie_path":None,
-            "debug_mode":False
+            "debug_mode":False,
+            "rss_tags":["MKV","AAC"],
+            "rss_tags_discard":["网盘资源","CHT","繁體"],
+            "dowload_all":False
             }
         self.re_type_img=self.get_config("re_type_img")
         '''返回消息类型是否为图片'''
@@ -66,6 +69,12 @@ class ani_configs:
         '''爱恋种子cookie文件路径，没啥用，看后续开发提高兼容性时可能会使用'''
         self.debug_mode = self.get_config("debug_mode")
         '''debug模式'''
+        self.rss_tags = self.get_config("rss_tags")
+        '''rss订阅中下载文件的优先tag'''
+        self.dowload_all = self.get_config("dowload_all")
+        '''下载rss订阅中的全部内容'''
+        self.rss_tags_discard:list = self.get_config("rss_tags_discard")
+        '''下载rss订阅中不需要的tags'''
         
         #bt_dl_url
         if self.acgrip_enable:

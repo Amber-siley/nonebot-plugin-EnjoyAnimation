@@ -1,4 +1,4 @@
-import json,sqlite3,re,difflib,requests
+import json,sqlite3,re,difflib
 from datetime import datetime,timedelta
 from typing import Literal
 from .variable import (
@@ -159,8 +159,9 @@ class db_lite:
                             ''')
         self.cursor.execute('''
                             create table if not exists qbits(
-                                qb_uid text not null primary key,
+                                qb_rssurl text not null primary key,
                                 relation integer,
+                                anime_name text,
                                 foreign key (relation) references animations(id)
                             )
                             ''')

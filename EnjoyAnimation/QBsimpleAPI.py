@@ -33,9 +33,10 @@ class rss_item:
         self.rss_list = [self.one_rss(i) for i in data.items()]
         self.rss_urls = [i.url for i in self.rss_list]
         self.torrent_urls = [j.torrenturl for i in self.rss_list for j in i.art_list]
-        self.hashs = [j.hash for i in self.rss_list for j in i.art_list]
+        self.torrent_hashs = [j.hash for i in self.rss_list for j in i.art_list]
         self.hash_to_Turl = {j.hash:j.torrenturl for i in self.rss_list for j in i.art_list}
         self.hash_to_rssname = {j.hash:i.rss_name for i in self.rss_list for j in i.art_list}
+        self.hash_to_rssurl = {j.hash:i.url for i in self.rss_list for j in i.art_list}
     
     class one_rss:
         def __init__(self,data:tuple) -> None:
@@ -45,7 +46,12 @@ class rss_item:
             self.url = infor["url"]
             self.art_list = [rss_item.one_torrent(i) for i in infor["articles"]]
             """articles列表"""
-    
+            self.__Tauthors = [i.author for i in self.art_list]
+            self.authors = list(set(self.__Tauthors))
+
+        def use_aurthor_search_torrrent(self,author:str):
+            return [i for i in self.art_list if i.author == author]
+        
     class one_torrent:
         def __init__(self,data:dict) -> None:
             tmp=data["description"]
@@ -56,14 +62,25 @@ class rss_item:
             title=data["title"]
             torrenturl=data["torrentURL"]
             
+            self.author = data["author"]
+            self.title=title
+            self.__tags = re.findall(r"[\[,【,『](.*?)[\],】,』]",self.title)
+            title_sub_tag = re.sub(r"\s*\[.*?\]\s*","",self.title)
+            self.__tags.append(title_sub_tag)
+            
+            self.tags = []
+            for i in self.__tags:
+                self.tags.extend(i.split(" "))
             self.hash = re.findall(r"&hash=(\w+)",torrenturl)[0]
             self.pic_url=pic_url
-            self.title=title
             self.torrenturl=torrenturl
 
 class dowload_item:
     def __init__(self,data:dict) -> None:
-        self.__torrents:dict = data["torrents"]
+        try:
+            self.__torrents:dict = data["torrents"]
+        except KeyError:
+            self.__torrents:dict = {}
         self.hashs = list(self.__torrents.keys())
         self.task_list = [self.one_task(i) for i in self.__torrents.items()]
     
@@ -187,7 +204,7 @@ class login_qb:
                 func(self,*args, **kwargs)
                 return True
             else:
-                enjoy_log.error(f"执行方法{func.__name__}时，qbit未链接")
+                # enjoy_log.error(f"执行方法{func.__name__}时，qbit未链接")
                 return False
         return _
 

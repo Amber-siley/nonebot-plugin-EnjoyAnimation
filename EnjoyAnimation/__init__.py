@@ -138,7 +138,6 @@ async def subscribe_animation_func(match:Matcher,event:MessageEvent,stat:T_State
                     re_msg=f"动漫 {anime_name} 已添加进追番列表"
                     if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
                         re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
-                    set_subcription_task(anime_id_tmp[0])
                     await subscribe_animation.finish(re_msg)
                 else:
                     for item_index,id in enumerate(anime_id_tmp):
@@ -163,7 +162,6 @@ async def subscribe_animation_chooice_func(match:Matcher,event:MessageEvent,args
             anime_id_list=get_nowM_animeidlist()
             if int(i) <= 0 or int(i) > len(anime_id_list):
                 await subscribe_animation.reject("请输入合法的番剧编号，请选择订阅编号，或者输入dd退出选择：")
-            set_subcription_task(anime_id_list[int(i)-1])
             insert_qq_anime(id,anime_id_list[int(i)-1])
     await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
@@ -176,7 +174,6 @@ async def subscribe_animation_fix_error(event:MessageEvent,stat:T_State,args:str
     animes = stat["anime_id"]
     id = event.user_id
     for i in nums:
-        set_subcription_task(animes[int(i)-1])
         insert_qq_anime(id,animes[int(i)-1])
     await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
@@ -196,7 +193,7 @@ async def select_sub_anime_func(event:MessageEvent):
     re_msg = ""
     for index,data in enumerate(datas):
         re_msg += f"{index+1}，{data}\n"
-    if msg := await return_message(re_msg,event) and re_msg:
+    if (msg := await return_message(re_msg,event)) and re_msg:
         await select_sub_animes.finish(Message("您的订阅番剧如下：\n"+msg))
     await select_sub_animes.finish("您还没有没有订阅番剧哟🤔")
     

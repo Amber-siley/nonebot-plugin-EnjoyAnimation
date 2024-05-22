@@ -22,7 +22,24 @@ from .variable import (
 animation_db=db_lite(animation_path)
 qbit=login_qb(ani_config.qbit_port,ani_config.qbit_admin,ani_config.qbit_pw)
 
+#后台入口
 @timetable.add_job("fixed","1w0h5m30s",233,True)
+async def background_main():
+    #animations information
+    await get_animation_infors()
+    await yuc_wiki_infors()
+
+    #connect qb & db
+    try:
+        timetable.remove_task(8787)
+    except IndexError:
+        ...
+    finally:
+        @timetable.add_job("interval","5m",task_id=8787,first_run=True)
+        def _():
+            db_connect_qb.set_subcription_rss()
+            db_connect_qb.rss_set_dl_task()
+    
 async def get_animation_infors():
     '''通过bgm api获取动漫信息并放入数据库'''
     onair="https://bgmlist.com/api/v1/bangumi/onair"
@@ -119,11 +136,7 @@ async def get_animation_infors():
         json_files(onair_json_path).write(onair_json)
         json_files(site_json_path).write(site_json)
     
-    # yuc_wike的信息爬取
-    await yuc_wiki_infors(animation_db)
-    
-    
-async def yuc_wiki_infors(animation_db:db_lite):
+async def yuc_wiki_infors():
     '''yuc_wiki网站的信息爬取整合 对bgm信息爬取的完善，不补充不存在的信息''' 
     now=datetime.now()
     yuc_url=f"https://yuc.wiki/{now.year}{month[now.month-1]}/"
@@ -179,16 +192,6 @@ async def yuc_wiki_infors(animation_db:db_lite):
         
     except AttributeError:
         enjoy_log.error(f"Animation database yuc_wike error !!! \nURL：{yuc_url}")
-    
-    try:
-        timetable.remove_task(8787)
-    except IndexError:
-        ...
-    finally:
-        @timetable.add_job("interval","1m",task_id=8787,first_run=True)
-        def _():
-            db_connect_qb.set_dl_task()
-            db_connect_qb.rss_set_dl_task()
         
 async def return_message(message:str,event:MessageEvent) ->str | Message:
     '''在qq上返回消息，读取配置分别返回消息（图片或者str）,返回消息段，需要使用send进行消息发送'''
@@ -257,20 +260,6 @@ def use_num_select_animeID(num:str) -> list[int]:
                 #结果唯一
                 anime_ids.add(tmp[0])
     return anime_ids
-
-def set_subcription_task(anime_id:int):
-    '''设置下载任务'''
-    anime_name = animation_db.universal_select_db("names","name",f"relation={anime_id}")[0]
-    for url,(proxy,cookie_p) in ani_config.bt_dl_url.items():
-        anime_url = qbit._chinese_url_replace_encoding(url,anime_name)
-        animes_len = len(etree.fromstring(requests.get(anime_url,headers=header).content).xpath("//item"))
-        if animes_len > 0:
-            qbit.cn_add_rss(url,anime_name)
-            # qbit.add_rss_dl_rule(anime_name)
-            savepath = os.path.join(video_path,anime_name).replace("\\","/")
-            os.makedirs(savepath,exist_ok=True)
-            # qbit.set_rss_dl_rule(anime_name,[anime_url],savepath)
-            break
     
 def get_nowM_animeidlist():
     '''获取当前季度返回的番剧id列表'''
@@ -280,43 +269,95 @@ def get_nowM_animeidlist():
     return anime_id_list
 
 class db_connect_qb:
-    @staticmethod
-    def set_dl_task():
-        ids = animation_db.universal_select_db("user_subscriptions","anime_relation")
-        names = [animation_db.universal_select_db("names","name",f"relation={id}")[0] for id in ids]
-        #rss订阅中的链接
-        exists_urls = [i.url for i in qbit.rss_infor.rss_list]
-        
-        for url,(proxy,cookie_p) in ani_config.bt_dl_url.items():
-            for name in names:
-                anime_url = qbit._chinese_url_replace_encoding(url,name)
+    def check() -> Callable:
+        def __(func:Callable):
+            def _(*args, **kwargs):
+                if not qbit.ok:
+                    return 0
                 
-                #检测是否已订阅该rss链接
-                if anime_url in exists_urls:
-                    continue
-                else:
-                    #订阅链接
-                    animes_len = len(etree.fromstring(requests.get(anime_url,headers=header).content).xpath("//item"))
-                    if animes_len > 0:
-                        qbit.cn_add_rss(url,name)
-                        os.makedirs(os.path.join(video_path,name),exist_ok=True)
-                        continue
+                func(*args, **kwargs)
+            return _
+        return __
     
     @staticmethod
+    @check()
+    def set_subcription_rss():
+        '''添加rss订阅'''
+        ids = list(set(animation_db.universal_select_db("user_subscriptions","anime_relation")))
+        names = [animation_db.universal_select_db("names","name",f"relation={id}")[0] for id in ids]
+        for url,(proxy,cookie_p) in ani_config.bt_dl_url.items():
+            for id_index,anime_name in enumerate(names):
+                anime_url = qbit._chinese_url_replace_encoding(url,anime_name)
+                rss_xml = etree.fromstring(requests.get(anime_url,headers=header).content)
+                authors:list = rss_xml.xpath("//item/author/text()")
+                titles:list = rss_xml.xpath("//item/title/text()")
+                main_author = None
+                for index,value in enumerate(titles):
+                    jum = False
+                    for dis in ani_config.rss_tags_discard:
+                        if re.search(rf"{dis}",value):
+                            jum = True
+                            break
+                    
+                    if jum:
+                        continue
+                    
+                    for tag in ani_config.rss_tags:
+                        if re.search(rf"{tag}",value):
+                            main_author = authors[index]
+                            break
+                    
+                    if main_author:
+                        break
+                else:
+                    main_author = max(authors,key=authors.count)
+                anime_rss = qbit._chinese_url_replace_encoding(url,f"{anime_name}+{main_author}")
+                if anime_rss not in qbit.rss_infor.rss_urls:
+                    qbit.add_rss(anime_rss)
+                    enjoy_log.info(f"订阅rss连接：{anime_name}+{main_author}")
+                if not animation_db.universal_select_db("qbits","relation",f"qb_rssurl='{anime_rss}'"):
+                    animation_db.universal_insert_db("qbits",qb_rssurl = anime_rss,relation = ids[id_index],anime_name = anime_name)
+                savepath = os.path.join(video_path,anime_name).replace("\\","/")
+                os.makedirs(savepath,exist_ok=True)
+            break
+    
+    @staticmethod
+    @check()
     def rss_set_dl_task():
         '''将rss订阅链接添加下载任务'''
         rss_hash_to_Turl = qbit.rss_infor.hash_to_Turl
-        hash_to_rssname = qbit.rss_infor.hash_to_rssname
+        hash_to_rssurl = qbit.rss_infor.hash_to_rssurl
+        hash_to_animename = qbit.rss_infor.hash_to_rssname
         dowload_hashs = qbit.download_info.hashs
-        art_list = qbit.rss_infor.rss_list
-        
-        for T in art_list:
-            #单个rss订阅链接的torrent链接hash值
-            rss_hashs = [i.hash for i in T.art_list]
-            for i in rss_hashs:
-                if i not in dowload_hashs:
-                    
-                    #该hash值不存在于下载任务中，添加下载任务
-                    qbit.add_download_torrent(rss_hash_to_Turl[i],os.path.join(video_path,hash_to_rssname[i]))
-                    enjoy_log.debug(f"已添加下载任务 {hash_to_rssname[i]}，hash:{i}")
 
+        set_dl_hashs = []
+        if not ani_config.dowload_all:
+            for rss in qbit.rss_infor.rss_list:
+                for item in rss.art_list:
+                    jum = False
+                    for dis in ani_config.rss_tags_discard:
+                        if re.search(rf"{dis}",item.title):
+                            jum = True
+                            break
+                        
+                    if jum:
+                        continue
+                    
+                    for tags in ani_config.rss_tags:
+                        if re.search(rf"{tags}",item.title):
+                            set_dl_hashs.append(item.hash)
+                            break
+        else:
+            #rss订阅链接的torrent链接hash值
+            set_dl_hashs = qbit.rss_infor.torrent_hashs
+
+        if not set_dl_hashs:
+            set_dl_hashs = qbit.rss_infor.torrent_hashs
+        
+        for i in set_dl_hashs:
+            if i not in dowload_hashs:
+                save_path = os.path.join(video_path,animation_db.universal_select_db("qbits","anime_name",f"qb_rssurl='{hash_to_rssurl[i]}'")[0])
+    
+                #该hash值不存在于下载任务中，添加下载任务
+                qbit.add_download_torrent(rss_hash_to_Turl[i],save_path)
+                enjoy_log.debug(f"已添加下载任务 {hash_to_animename[i]}，hash:{i}")
