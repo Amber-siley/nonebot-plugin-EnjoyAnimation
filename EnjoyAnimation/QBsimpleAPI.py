@@ -32,11 +32,19 @@ class rss_item:
         self.titles = list(data.keys())
         self.rss_list = [self.one_rss(i) for i in data.items()]
         self.rss_urls = [i.url for i in self.rss_list]
+        
+        #以后优化
         self.torrent_urls = [j.torrenturl for i in self.rss_list for j in i.art_list]
         self.torrent_hashs = [j.hash for i in self.rss_list for j in i.art_list]
         self.hash_to_Turl = {j.hash:j.torrenturl for i in self.rss_list for j in i.art_list}
         self.hash_to_rssname = {j.hash:i.rss_name for i in self.rss_list for j in i.art_list}
         self.hash_to_rssurl = {j.hash:i.url for i in self.rss_list for j in i.art_list}
+    
+    def get_torrent_hashs(self,rss_url):
+        for item in self.rss_list:
+            if item.url == rss_url:
+                return item.hashs
+            
     
     class one_rss:
         def __init__(self,data:tuple) -> None:
@@ -46,6 +54,7 @@ class rss_item:
             self.url = infor["url"]
             self.art_list = [rss_item.one_torrent(i) for i in infor["articles"]]
             """articles列表"""
+            self.hashs = [i.hash for i in self.art_list]
             self.__Tauthors = [i.author for i in self.art_list]
             self.authors = list(set(self.__Tauthors))
 
@@ -156,6 +165,8 @@ class login_qb:
         self.__refres_rss_url=f"{self.__root_url}/api/v2/rss/refreshItem"
         self.__add_rss_download_rule=f"{self.__root_url}/api/v2/rss/setRule"
         self.__get_rss_dl_rule=f"{self.__root_url}/api/v2/rss/rules"
+        self.__remove_rss_url = f"{self.__root_url}/api/v2/rss/removeItem"
+        self.__delete_dl_url = f"{self.__root_url}/api/v2/torrents/delete"
         
         self.__matching_artcles_url=f"{self.__root_url}/api/v2/rss/matchingArticles"
         self.session=requests.session()
@@ -326,4 +337,20 @@ class login_qb:
         - tmp_str：需要进行替换的字符串，将会使用url进行编码'''
         re_rule="\{x{3}\}"
         return(re.sub(re_rule,quote(tmp_str),url,1))
-                
+    
+    def remove_rss(self,rss_url):
+        '''移除rss订阅'''
+        for i,url in enumerate(self.rss_infor.rss_urls):
+            if rss_url == url:
+                title = self.rss_infor.titles[i]
+        self.delete_dl(rss_url)
+        self.session.post(self.__remove_rss_url,data = {'path':title})
+    
+    def delete_dl(self,rss_url):
+        '''删除下载文件'''
+        hashs = self.rss_infor.get_torrent_hashs(rss_url)
+        for h in hashs:
+            self.session.post(url = self.__delete_dl_url,data = {
+                "hashes":h,
+                "deleteFiles":True
+            })

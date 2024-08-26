@@ -1,11 +1,21 @@
-from .EnjoyAnimation import *
+from .EnjoyAnimation import (
+    get_nowM_animeidlist,
+    return_message,
+    get_animation_infors,
+    dlite,
+    find_animation_id,
+    insert_qq_anime,
+    user_subanime,
+    background_entrance,
+    reset_subinfor
+)
 from .index import *
 from .variable import (
     animation_path,
     yes_list,
     video_path,
-    random_list,
     anime_user_help_txt,
+    choice,
     anime_admin_help_txt,
     config,
     datetime_week,
@@ -15,6 +25,7 @@ from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 from nonebot.adapters.onebot.v11 import (
+    MessageSegment,
     MessageEvent,
     Message
 )
@@ -22,7 +33,10 @@ from nonebot import (
     on_command,
 )
 from nonebot.params import CommandArg,ArgPlainText
+from datetime import datetime
+import os
 
+background_entrance()
 animation_db=db_lite(animation_path)
 
 animation_info=on_command(cmd="本季番剧",aliases={"番剧信息"})
@@ -31,9 +45,9 @@ today_update=on_command(cmd="今日更新")
 animation_inqurie=on_command("番剧查询",aliases={"查询番剧"})
 subscribe_animation=on_command(cmd="订阅番剧",aliases={"番剧订阅"})
 anime_help=on_command(cmd="番剧帮助")
-select_sub_animes=on_command(cmd="我的追番",aliases={"我的订阅"})
+select_sub_animes = on_command(cmd="我的追番",aliases={"我的订阅"})
 unsub_animes = on_command(cmd="取消追番",aliases={"取消订阅"})
-sreach_anime_configs=on_command(cmd="debug番剧配置项")
+manual_dl = on_command(cmd="下载番剧")
 
 @animation_info.handle()
 async def animation_info_func(event:MessageEvent):
@@ -51,7 +65,7 @@ async def animation_update_func(event:MessageEvent):
     '''（管理员）强制更新数据库'''
     timetable.remove_task(task_id=233)
     timetable.add_job("fixed","1w0h5m30s",233,True)(get_animation_infors)
-    await animation_update.finish(random_list(yes_list))
+    await animation_update.finish(choice(yes_list))
     
 @today_update.handle()
 async def today_update_func(event:MessageEvent):
@@ -138,6 +152,7 @@ async def subscribe_animation_func(match:Matcher,event:MessageEvent,stat:T_State
                     re_msg=f"动漫 {anime_name} 已添加进追番列表"
                     if anime_path:=animation_db.universal_select_db("animations","pic_path",f"id={anime_id_tmp[0]}")[0]:
                         re_msg=Message(re_msg+MessageSegment.image(file=f"file:///{anime_path}"))
+                    reset_subinfor()
                     await subscribe_animation.finish(re_msg)
                 else:
                     for item_index,id in enumerate(anime_id_tmp):
@@ -154,7 +169,7 @@ async def subscribe_animation_chooice_func(match:Matcher,event:MessageEvent,args
     if args == None:
         match.set_arg("error_num",None)
     if args == "dd":
-        await subscribe_animation.finish(random_list(yes_list))
+        await subscribe_animation.finish(choice(yes_list))
     id = event.user_id
     nums = args.split(" ")
     for i in nums:
@@ -163,6 +178,7 @@ async def subscribe_animation_chooice_func(match:Matcher,event:MessageEvent,args
             if int(i) <= 0 or int(i) > len(anime_id_list):
                 await subscribe_animation.reject("请输入合法的番剧编号，请选择订阅编号，或者输入dd退出选择：")
             insert_qq_anime(id,anime_id_list[int(i)-1])
+    reset_subinfor()
     await subscribe_animation.finish(Message("番剧已订阅，您的订阅番剧如下：\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
 
 @subscribe_animation.got(key="error_num")
@@ -219,9 +235,10 @@ async def unsub_animes_got_func(event:MessageEvent,args:Message | str=ArgPlainTe
     animes_msg = await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(anime_names)]),event)
     if args in ["all","All"]:
         animation_db.universal_delete_db("user_subscriptions",f"qq_id={id}")
-        await unsub_animes.finish(f"{random_list(yes_list)} 已全部取消订阅😭")
+        reset_subinfor()
+        await unsub_animes.finish(f"{choice(yes_list)} 已全部取消订阅😭")
     if args == "dd":
-        await unsub_animes.finish(random_list(yes_list))
+        await unsub_animes.finish(choice(yes_list))
     else:
         ids = args.split(" ")
         sub_anime_ids = animation_db.universal_select_db("user_subscriptions","anime_relation",f"qq_id={id}")
@@ -235,4 +252,6 @@ async def unsub_animes_got_func(event:MessageEvent,args:Message | str=ArgPlainTe
                 locked = False
         if locked or num_error and not excute_bit:
             await unsub_animes.reject("请输入合法数字编号哦😘，请重新输入，或者输入dd退出\n"+animes_msg)
+    reset_subinfor()
     await unsub_animes.send(Message("已取消订阅番剧，正在订阅的番剧如下\n"+await return_message("".join([f"{index+1}，{name}\n" for index,name in enumerate(user_subanime(id))]),event)))
+

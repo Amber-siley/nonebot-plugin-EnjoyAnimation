@@ -2,9 +2,7 @@ import json,sqlite3,re,difflib
 from datetime import datetime,timedelta
 from typing import Literal
 from .variable import (
-    header,
-    enjoy_log,
-    animes_db_colnames
+    enjoy_log
 )
 
 class json_files:
@@ -46,6 +44,7 @@ class isotime_format:
             pos_neg=-1
         self.time_datetime+=pos_neg*self.__timedelta_dict(unit,var)
         return str(self.time_datetime)
+    
     def __timedelta_dict(self,unit:str,var:int):
         tmp={unit:var}
         return timedelta(**tmp)
@@ -112,19 +111,28 @@ class db_lite:
     @commit
     def __fix_self(self):
         '''自捡，'''
-        anime_colnames = self.get_colname("animations")
-        for anime in animes_db_colnames.keys():
-            #检查animations中的列名是否缺失
-            if anime not in anime_colnames:
-                #缺失列则添加
-                self.alter_table_db("animations","add",anime,animes_db_colnames[anime])
-                enjoy_log.debug(f"在animations中缺失 {anime} 已添加")
-                
+        for table in self.__tables_colnames.keys():
+            anime_colnames = self.get_colname(table)
+            for real_col in self.__tables_colnames[table].keys():
+                #检查animations中的列名是否缺失
+                if real_col not in anime_colnames:
+                    #缺失列则添加
+                    self.alter_table_db(table,"add",real_col,self.__tables_colnames[table][real_col])
+                    enjoy_log.debug(f"在{table}中缺失 {real_col} 已添加")
+                    
     @commit
     def __init__(self,db_path) -> None:
         self.__db_path=db_path
         self.conn=sqlite3.connect(self.__db_path,check_same_thread=False)
         self.cursor=self.conn.cursor()
+        self.__animes_colnames = {'id':'integer', 'pic_path':'text', 'start_date':"date", 'JP_start_date_UTC8':'date', \
+                'CN_start_date':'date', 'status':"date", 'official_url':'text',"description":'text',"anime_type":"text",\
+                "anime_typetag":'text',"pv":"text","froms":"text","episodes":"text"} #animations列名
+        self.__user_subscriptions_colnames = {"qq_id":"integer","anime_relation":"integer","web_username":"text","status":"integer"}
+        self.__tables_colnames = {
+            "animations":self.__animes_colnames,
+            "user_subscriptions":self.__user_subscriptions_colnames
+        }
         self.cursor.execute('''
                             create table if not exists animations(
                                 id integer primary key,
@@ -180,6 +188,7 @@ class db_lite:
                                 qq_id integer not null,
                                 anime_relation integer not null,
                                 web_username text,
+                                status integer,
                                 foreign key (anime_relation) references animations(id),
                                 foreign key (web_username) references enjoy_users(username)
                             )
@@ -319,9 +328,7 @@ class db_lite:
     @commit 
     def reset_table(self,table):
         '''重置表'''
-        self.cursor.execute('''
-                            truncate table ?
-                            ''',(table))
+        self.cursor.execute(f'''delete from {table}''')
     
     def name_ratio(self,name_list:list | str)->int:
         '''检测动漫名称的相似度大于0.7的id'''

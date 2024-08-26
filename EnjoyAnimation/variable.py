@@ -27,8 +27,6 @@ class ani_configs:
             "kisssub_enable":True,
             "kisssub_cookie_path":None,
             "debug_mode":False,
-            "rss_tags":["MKV","AAC"],
-            "rss_tags_discard":["网盘资源","CHT","繁體"],
             "dowload_all":False
             }
         self.re_type_img=self.get_config("re_type_img")
@@ -69,13 +67,10 @@ class ani_configs:
         '''爱恋种子cookie文件路径，没啥用，看后续开发提高兼容性时可能会使用'''
         self.debug_mode = self.get_config("debug_mode")
         '''debug模式'''
-        self.rss_tags = self.get_config("rss_tags")
-        '''rss订阅中下载文件的优先tag'''
+        
         self.dowload_all = self.get_config("dowload_all")
         '''下载rss订阅中的全部内容'''
-        self.rss_tags_discard:list = self.get_config("rss_tags_discard")
-        '''下载rss订阅中不需要的tags'''
-        
+
         #bt_dl_url
         if self.acgrip_enable:
             self.bt_dl_url["https://acg.rip/.xml?term={xxx}"]={"proxy":self.proxy,"cookie_path":None}
@@ -96,16 +91,12 @@ class ani_configs:
             re=self.default[attr]
         return re
 
-def random_list(list:list):
-    '''在一个列表随机选取一个元素 额，我也不知道为什么写了这个函数，鬼上身了'''
-    return choice(list)
-
 def random_str(length:int):
     '''随机生成length长度的字符串'''
     data_str="ABCDEFGHIGKLMNOPQRSTUVWXYZabcdefghigklmnopqrstuvwxyz0123456789,.;:[]!@#$%^&*-+="
     re_str=""
     for i in range(0,length):
-        re_str+=random_list(data_str)
+        re_str+=choice(data_str)
     return re_str
 
 #dirs_path
@@ -131,9 +122,6 @@ os.makedirs(debug_path,exist_ok=True)
 
 #db
 month=["01","01","01","04","04","04","07","07","07","10","10","10"]     #季度对应的时间表
-animes_db_colnames = {'id':'integer', 'pic_path':'text', 'start_date':"date", 'JP_start_date_UTC8':'date', \
-    'CN_start_date':'date', 'status':"date", 'official_url':'text',"description":'text',"anime_type":"text",\
-    "anime_typetag":'text',"pv":"text","froms":"text","episodes":"text"} #animations列名
 
 #nonebot
 dirver=get_driver()             #驱动器
